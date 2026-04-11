@@ -124,6 +124,19 @@ def read_product(product_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
+@router.get("/products/{product_id}/reviews", response_model=list[schemas.ReviewRead])
+def read_product_reviews(product_id: str, db: Session = Depends(get_db)):
+    return services.get_product_reviews(db, product_id)
+
+
+@router.post("/products/{product_id}/reviews", response_model=schemas.ReviewRead)
+def create_product_review(product_id: str, payload: schemas.ReviewCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        return services.create_review(db, current_user.id, product_id, payload.rating, payload.comment)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
 @router.post("/products", response_model=schemas.ProductRead)
 def create_product(payload: schemas.ProductCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_admin(current_user)

@@ -24,6 +24,7 @@ class User(Base):
 
     carts = relationship("Cart", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
 
 
 class Category(Base):
@@ -61,6 +62,21 @@ class Product(Base):
     category = relationship("Category", back_populates="products")
     cart_items = relationship("CartItem", back_populates="product", cascade="all, delete-orphan")
     order_items = relationship("OrderItem", back_populates="product", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="reviews")
+    product = relationship("Product", back_populates="reviews")
 
 
 class Cart(Base):

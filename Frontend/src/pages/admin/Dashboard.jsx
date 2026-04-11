@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Package, ShoppingCart, DollarSign, Users } from 'lucide-react';
+import { Package, ShoppingCart, Coins, Users, ArrowRight } from 'lucide-react';
 import { adminService } from '../../services/adminService';
 import { formatPrice } from '../../utils/formatPrice';
+import { useRecommend } from '../../hooks/useRecommend';
+import ProductCard from '../../components/ProductCard';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -12,6 +14,7 @@ const Dashboard = () => {
     totalUsers: 0,
   });
   const [loading, setLoading] = useState(true);
+  const { recommendations, loading: recommendationsLoading } = useRecommend();
 
   useEffect(() => {
     loadStats();
@@ -52,7 +55,7 @@ const Dashboard = () => {
     {
       title: 'Total Revenue',
       value: formatPrice(stats.totalRevenue),
-      icon: DollarSign,
+      icon: Coins,
       color: 'bg-yellow-500',
     },
     {
@@ -69,7 +72,7 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         {statCards.map((stat, index) => (
           <div key={index} className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between mb-4">
@@ -81,6 +84,35 @@ const Dashboard = () => {
             <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">You may also like</h2>
+          <Link
+            to="/admin/products"
+            className="text-blue-600 hover:text-blue-700 font-semibold flex items-center space-x-2"
+          >
+            <span>Manage Products</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {recommendationsLoading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        ) : recommendations.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {recommendations.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500 py-12">
+            No recommendations available at the moment.
+          </p>
+        )}
       </div>
     </div>
   );

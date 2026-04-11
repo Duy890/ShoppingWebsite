@@ -152,7 +152,7 @@ const AddProduct = () => {
               value={formData.price}
               onChange={handleChange}
               required
-              step="0.01"
+              step="1000"
               min="0"
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

@@ -108,6 +108,40 @@ def delete_product(db: Session, product: models.Product) -> None:
     db.commit()
 
 
+def get_reviews_by_product(db: Session, product_id: str) -> list[models.Review]:
+    return (
+        db.query(models.Review)
+        .options(joinedload(models.Review.user))
+        .filter(models.Review.product_id == product_id)
+        .order_by(models.Review.created_at.desc())
+        .all()
+    )
+
+
+def create_review(db: Session, user_id: str, product_id: str, rating: int, comment: str | None) -> models.Review:
+    review = models.Review(
+        user_id=user_id,
+        product_id=product_id,
+        rating=rating,
+        comment=comment
+    )
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+
+    # Update product rating and count
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        all_ratings = db.query(models.Review.rating).filter(models.Review.product_id == product_id).all()
+        ratings = [r[0] for r in all_ratings]
+        product.review_count = len(ratings)
+        product.rating = sum(ratings) / len(ratings)
+        db.add(product)
+        db.commit()
+
+    return review
+
+
 def get_or_create_cart(db: Session, user_id: str) -> models.Cart:
     cart = db.query(models.Cart).filter(models.Cart.user_id == user_id).first()
     if cart:

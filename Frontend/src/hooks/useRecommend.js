@@ -8,10 +8,8 @@ export const useRecommend = (productId = null) => {
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    if (user) {
-      loadRecommendations();
-    }
-  }, [user, productId]);
+    loadRecommendations();
+  }, [user?.id, productId]);
 
   const loadRecommendations = async () => {
     try {

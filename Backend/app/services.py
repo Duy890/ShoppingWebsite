@@ -90,6 +90,17 @@ def delete_product(db: Session, product_id: str):
     repositories.delete_product(db, product)
 
 
+def get_product_reviews(db: Session, product_id: str):
+    return repositories.get_reviews_by_product(db, product_id)
+
+
+def create_review(db: Session, user_id: str, product_id: str, rating: int, comment: Optional[str] = None):
+    product = repositories.get_product(db, product_id)
+    if not product:
+        raise ValueError("Product not found")
+    return repositories.create_review(db, user_id, product_id, rating, comment)
+
+
 def get_or_create_cart(db: Session, user_id: str):
     return repositories.get_or_create_cart(db, user_id)
 

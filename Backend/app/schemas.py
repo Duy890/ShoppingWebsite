@@ -94,6 +94,26 @@ class ProductRead(ProductBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     category: Optional[CategoryRead] = None
+    reviews: List["ReviewRead"] = []
+
+    model_config = {"from_attributes": True}
+
+
+class ReviewBase(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    comment: Optional[str] = None
+
+
+class ReviewCreate(ReviewBase):
+    pass
+
+
+class ReviewRead(ReviewBase):
+    id: str
+    user_id: str
+    product_id: str
+    created_at: datetime
+    user: UserResponse
 
     model_config = {"from_attributes": True}
 

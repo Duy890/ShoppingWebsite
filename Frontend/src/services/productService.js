@@ -52,4 +52,14 @@ export const productService = {
   async deleteCategory(id) {
     await api.delete(`/categories/${id}`);
   },
+
+  async getProductReviews(productId) {
+    const { data } = await api.get(`/products/${productId}/reviews`);
+    return data;
+  },
+
+  async addProductReview(productId, review) {
+    const { data } = await api.post(`/products/${productId}/reviews`, review);
+    return data;
+  },
 };
