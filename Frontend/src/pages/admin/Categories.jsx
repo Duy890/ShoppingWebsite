@@ -95,7 +95,7 @@ const Categories = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Category List</h2>
           {loading ? (
             <div className="flex justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
           ) : categories.length === 0 ? (
             <p className="text-gray-600">No categories available yet.</p>
