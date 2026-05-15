@@ -1,0 +1,67 @@
+{
+  "01": [
+    { "code": "001", "name": "Hoàn Kiếm", "type": "Quận" },
+    { "code": "002", "name": "Ba Đình", "type": "Quận" },
+    { "code": "003", "name": "Tây Hồ", "type": "Quận" },
+    { "code": "004", "name": "Long Biên", "type": "Quận" },
+    { "code": "005", "name": "Cầu Giấy", "type": "Quận" },
+    { "code": "006", "name": "Đống Đa", "type": "Quận" },
+    { "code": "007", "name": "Hai Bà Trưng", "type": "Quận" },
+    { "code": "008", "name": "Hoàng Mai", "type": "Quận" },
+    { "code": "009", "name": "Thanh Xuân", "type": "Quận" },
+    { "code": "010", "name": "Nam Từ Liêm", "type": "Quận" },
+    { "code": "011", "name": "Bắc Từ Liêm", "type": "Quận" },
+    { "code": "012", "name": "Gia Lâm", "type": "Quận" },
+    { "code": "013", "name": "Đông Anh", "type": "Quận" },
+    { "code": "014", "name": "Sóc Sơn", "type": "Quận" },
+    { "code": "015", "name": "Thường Tín", "type": "Huyện" }
+  ],
+  "31": [
+    { "code": "101", "name": "Hồng Bàng", "type": "Quận" },
+    { "code": "102", "name": "Ngô Quyền", "type": "Quận" },
+    { "code": "103", "name": "Lê Chân", "type": "Quận" },
+    { "code": "104", "name": "Kiến An", "type": "Quận" },
+    { "code": "105", "name": "Đồ Sơn", "type": "Quận" },
+    { "code": "106", "name": "Cát Hải", "type": "Huyện" },
+    { "code": "107", "name": "Bạch Long Vĩ", "type": "Huyện" }
+  ],
+  "41": [
+    { "code": "201", "name": "Hải Châu", "type": "Quận" },
+    { "code": "202", "name": "Thanh Khê", "type": "Quận" },
+    { "code": "203", "name": "Sơn Trà", "type": "Quận" },
+    { "code": "204", "name": "Ngũ Hành Sơn", "type": "Quận" },
+    { "code": "205", "name": "Liên Chiều", "type": "Quận" },
+    { "code": "206", "name": "Cẩm Lệ", "type": "Quận" },
+    { "code": "207", "name": "Hòa Vang", "type": "Huyện" }
+  ],
+  "66": [
+    { "code": "301", "name": "Quận 1", "type": "Quận" },
+    { "code": "302", "name": "Quận 2", "type": "Quận" },
+    { "code": "303", "name": "Quận 3", "type": "Quận" },
+    { "code": "304", "name": "Quận 4", "type": "Quận" },
+    { "code": "305", "name": "Quận 5", "type": "Quận" },
+    { "code": "306", "name": "Quận 6", "type": "Quận" },
+    { "code": "307", "name": "Quận 7", "type": "Quận" },
+    { "code": "308", "name": "Quận 8", "type": "Quận" },
+    { "code": "309", "name": "Quận 9", "type": "Quận" },
+    { "code": "310", "name": "Quận 10", "type": "Quận" },
+    { "code": "311", "name": "Quận 11", "type": "Quận" },
+    { "code": "312", "name": "Quận 12", "type": "Quận" },
+    { "code": "313", "name": "Tân Bình", "type": "Quận" },
+    { "code": "314", "name": "Tân Phú", "type": "Quận" },
+    { "code": "315", "name": "Phú Nhuận", "type": "Quận" },
+    { "code": "316", "name": "Bình Thạnh", "type": "Quận" },
+    { "code": "317", "name": "Gò Vấp", "type": "Quận" },
+    { "code": "318", "name": "Bình Chánh", "type": "Quận" },
+    { "code": "319", "name": "Cần Giờ", "type": "Huyện" },
+    { "code": "320", "name": "Cù Chi", "type": "Huyện" }
+  ],
+  "75": [
+    { "code": "401", "name": "Ninh Kiều", "type": "Quận" },
+    { "code": "402", "name": "Bình Thủy", "type": "Quận" },
+    { "code": "403", "name": "Cái Răng", "type": "Quận" },
+    { "code": "404", "name": "Ô Môn", "type": "Quận" },
+    { "code": "405", "name": "Thốt Nốt", "type": "Quận" },
+    { "code": "406", "name": "Cơ Đơc", "type": "Phường" }
+  ]
+}

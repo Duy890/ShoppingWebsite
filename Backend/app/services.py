@@ -33,12 +33,49 @@ def get_user(db: Session, user_id: str) -> models.User:
     return user
 
 
-def update_profile(db: Session, user: models.User, full_name: Optional[str] = None) -> models.User:
-    return repositories.update_user_profile(db, user, full_name)
+def update_profile(db: Session, user: models.User, full_name: Optional[str] = None, avatar_url: Optional[str] = None) -> models.User:
+    return repositories.update_user_profile(db, user, full_name, avatar_url)
+
+
+def get_user_addresses(db: Session, user_id: str):
+    return repositories.get_addresses_by_user(db, user_id)
+
+
+def create_address(db: Session, user_id: str, address_data: dict):
+    return repositories.create_address(db, user_id, address_data)
+
+
+def update_address(db: Session, user_id: str, address_id: str, updates: dict):
+    address = repositories.get_address_by_id(db, address_id)
+    if not address or address.user_id != user_id:
+        raise ValueError("Address not found")
+    return repositories.update_address(db, address, updates)
+
+
+def delete_address(db: Session, user_id: str, address_id: str):
+    address = repositories.get_address_by_id(db, address_id)
+    if not address or address.user_id != user_id:
+        raise ValueError("Address not found")
+    repositories.delete_address(db, address)
+
+
+def set_default_address(db: Session, user_id: str, address_id: str):
+    address = repositories.get_address_by_id(db, address_id)
+    if not address or address.user_id != user_id:
+        raise ValueError("Address not found")
+    return repositories.set_default_address(db, address)
 
 
 def get_categories(db: Session):
     return repositories.get_categories(db)
+
+
+def get_categories_tree(db: Session):
+    return repositories.get_categories_tree(db)
+
+
+def get_search_suggestions(db: Session, query: str, limit: int = 8):
+    return repositories.get_search_suggestions(db, query, limit)
 
 
 def create_category(db: Session, name: str, description: Optional[str] = None):
@@ -90,6 +127,72 @@ def delete_product(db: Session, product_id: str):
     repositories.delete_product(db, product)
 
 
+def group_specifications(specifications):
+    grouped = {}
+    for spec in specifications:
+        grouped.setdefault(spec.group_name, []).append({
+            "id": spec.id,
+            "product_id": spec.product_id,
+            "key": spec.spec_key,
+            "value": spec.spec_value,
+            "display_order": spec.display_order,
+            "created_at": spec.created_at,
+        })
+    return grouped
+
+
+def get_product_specifications(db: Session, product_id: str):
+    if not repositories.get_product(db, product_id):
+        raise ValueError("Product not found")
+    return repositories.get_product_specifications(db, product_id)
+
+
+def get_grouped_product_specifications(db: Session, product_id: str):
+    return group_specifications(get_product_specifications(db, product_id))
+
+
+def create_product_specification(db: Session, product_id: str, spec_data: dict):
+    if not repositories.get_product(db, product_id):
+        raise ValueError("Product not found")
+    return repositories.create_product_specification(db, product_id, spec_data)
+
+
+def update_product_specification(db: Session, specification_id: str, updates: dict):
+    spec = repositories.get_product_specification(db, specification_id)
+    if not spec:
+        raise ValueError("Specification not found")
+    return repositories.update_product_specification(db, spec, updates)
+
+
+def delete_product_specification(db: Session, specification_id: str):
+    spec = repositories.get_product_specification(db, specification_id)
+    if not spec:
+        raise ValueError("Specification not found")
+    repositories.delete_product_specification(db, spec)
+
+
+def replace_product_specifications(db: Session, product_id: str, specifications: list[dict]):
+    if not repositories.get_product(db, product_id):
+        raise ValueError("Product not found")
+    normalized_specs = []
+    for index, spec in enumerate(specifications):
+        group_name = (spec.get("group_name") or "").strip()
+        spec_key = (spec.get("spec_key") or "").strip()
+        if not group_name or not spec_key:
+            continue
+        normalized_specs.append({
+            "group_name": group_name,
+            "spec_key": spec_key,
+            "spec_value": spec.get("spec_value"),
+            "display_order": spec.get("display_order", index),
+        })
+    return repositories.replace_product_specifications(db, product_id, normalized_specs)
+
+
+def get_spec_templates(db: Session, product_type: str):
+    return repositories.get_spec_templates(db, product_type)
+
+
 def get_product_reviews(db: Session, product_id: str):
     return repositories.get_reviews_by_product(db, product_id)
 
@@ -135,9 +238,17 @@ def clear_cart(db: Session, user_id: str):
     repositories.clear_cart(db, user_id)
 
 
-def create_order(db: Session, user_id: str, items: list[dict], shipping_address: Optional[str] = None, payment_method: Optional[str] = None):
+def create_order(db: Session, user_id: str, items: list[dict], shipping_address: Optional[str] = None, payment_method: Optional[str] = None, address_id: Optional[str] = None):
     if not items:
         raise ValueError("Order must contain at least one item")
+
+    address_record = None
+    if address_id:
+        address_record = repositories.get_address_by_id(db, address_id)
+        if not address_record or address_record.user_id != user_id:
+            raise ValueError("Invalid address selected")
+        if not shipping_address:
+            shipping_address = f"{address_record.full_name}, {address_record.street}, {address_record.district or ''}, {address_record.city}, {address_record.country}".replace(' ,', ',').strip(', ')
 
     total_amount = 0.0
     order_items = []
@@ -157,7 +268,7 @@ def create_order(db: Session, user_id: str, items: list[dict], shipping_address:
             "price": product.price,
         })
 
-    order = repositories.create_order(db, user_id, total_amount, shipping_address, payment_method)
+    order = repositories.create_order(db, user_id, total_amount, shipping_address, payment_method, address_id)
 
     for order_item in order_items:
         repositories.create_order_item(db, order.id, **order_item)
@@ -186,6 +297,75 @@ def update_order_status(db: Session, order_id: str, status: str):
     if not order:
         raise ValueError("Order not found")
     return repositories.update_order_status(db, order, status)
+
+
+# Order Tracking Services
+VALID_STATUS_TRANSITIONS = {
+    "pending": ["confirmed", "cancelled", "payment_failed"],
+    "confirmed": ["processing"],
+    "processing": ["shipped"],
+    "shipped": ["out_for_delivery"],
+    "out_for_delivery": ["delivered"],
+    "delivered": ["return_requested"],
+    "return_requested": ["returned"],
+    "returned": ["refunded"],
+    "cancelled": [],
+    "payment_failed": [],
+    "refunded": [],
+}
+
+
+def update_order_status_with_history(db: Session, order_id: str, new_status: str, note: Optional[str] = None, changed_by: Optional[str] = None) -> models.Order:
+    order = repositories.get_order_by_id(db, order_id)
+    if not order:
+        raise ValueError("Order not found")
+
+    old_status = order.status
+    if new_status not in VALID_STATUS_TRANSITIONS.get(old_status, []):
+        raise ValueError(f"Invalid status transition from {old_status} to {new_status}")
+
+    # Update order status
+    order = repositories.update_order_status(db, order, new_status)
+
+    # Set timestamps based on status
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    if new_status == "delivered":
+        order.delivered_at = now
+    elif new_status in ["cancelled", "payment_failed"]:
+        order.cancelled_at = now
+    elif new_status == "shipped":
+        # Generate tracking info for shipped orders
+        import random
+        import string
+        order.tracking_code = f"TK{random.randint(100000000, 999999999)}"
+        order.shipping_provider = random.choice(["GHN", "GHTK", "Viettel Post", "FedEx"])
+        order.estimated_delivery = now + timedelta(days=random.randint(2, 7))
+
+    # Create history record
+    repositories.create_order_status_history(db, order_id, old_status, new_status, note, changed_by)
+
+    db.commit()
+    return order
+
+
+def get_order_tracking_timeline(db: Session, order_id: str) -> list[models.OrderStatusHistory]:
+    return repositories.get_order_status_history(db, order_id)
+
+
+def simulate_next_order_status(db: Session, order_id: str, changed_by: Optional[str] = None) -> models.Order:
+    order = repositories.get_order_by_id(db, order_id)
+    if not order:
+        raise ValueError("Order not found")
+
+    current_status = order.status
+    next_statuses = VALID_STATUS_TRANSITIONS.get(current_status, [])
+    if not next_statuses:
+        raise ValueError(f"No valid next status for {current_status}")
+
+    # For simulation, pick the first valid next status
+    next_status = next_statuses[0]
+    return update_order_status_with_history(db, order_id, next_status, "Simulated status update", changed_by)
 
 
 def get_admin_stats(db: Session):

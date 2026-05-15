@@ -1,10 +1,16 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { orderService } from '../services/orderService';
+import { authService } from '../services/authService';
+import { addressService } from '../services/addressService';
 import { formatPrice } from '../utils/formatPrice';
 import { ORDER_STATUS_LABELS } from '../utils/constants';
-import { User, Package } from 'lucide-react';
+import { Package, MapPin, User } from 'lucide-react';
+import AvatarUploader from '../components/AvatarUploader';
+import ProfileDropdown from '../components/ProfileDropdown';
+import AddressCard from '../components/AddressCard';
+import AddressFormModal from '../components/AddressFormModal';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -16,6 +22,15 @@ const Profile = () => {
     full_name: '',
     avatar_url: '',
   });
+  const [avatarPreview, setAvatarPreview] = useState('');
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState(null);
+  const [addresses, setAddresses] = useState([]);
+  const [addressLoading, setAddressLoading] = useState(true);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(null);
+  const [deletingAddressId, setDeletingAddressId] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (profile) {
@@ -28,6 +43,7 @@ const Profile = () => {
 
   useEffect(() => {
     loadOrders();
+    loadAddresses().catch(() => {});
   }, [user]);
 
   const loadOrders = async () => {
@@ -43,6 +59,22 @@ const Profile = () => {
     }
   };
 
+  const loadAddresses = async () => {
+    if (!user) return;
+
+    setAddressLoading(true);
+    try {
+      const data = await addressService.getAddresses();
+      setAddresses(data);
+      return data;
+    } catch (error) {
+      console.error('Error loading addresses:', error);
+      throw error;
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -50,15 +82,79 @@ const Profile = () => {
     });
   };
 
+  const handleAvatarSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      await updateProfile(formData);
+      let avatar_url = formData.avatar_url;
+
+      if (selectedAvatarFile) {
+        const result = await authService.uploadAvatar(selectedAvatarFile);
+        avatar_url = result.avatar_url;
+      }
+
+      await updateProfile({ full_name: formData.full_name, avatar_url });
+      setFormData((prev) => ({ ...prev, avatar_url }));
+      setSelectedAvatarFile(null);
+      setAvatarPreview('');
       setEditing(false);
       alert('Profile updated successfully!');
     } catch (error) {
-      alert(error.message);
+      alert(error.message || 'Unable to update profile.');
+    }
+  };
+
+  const handleAddressModalSubmit = async (addressData) => {
+    try {
+      let result;
+      if (editingAddress) {
+        result = await addressService.updateAddress(editingAddress.id, addressData);
+      } else {
+        const payload = { ...addressData };
+        if (addresses.length === 0) {
+          payload.is_default = true;
+        }
+        result = await addressService.createAddress(payload);
+      }
+      await loadAddresses();
+      setAddressModalOpen(false);
+      setEditingAddress(null);
+      alert(editingAddress ? 'Address updated successfully!' : 'Address added successfully!');
+    } catch (error) {
+      alert(error.message || 'Unable to save address.');
+      throw error;
+    }
+  };
+
+  const handleDeleteAddress = async (addressId) => {
+    if (!window.confirm('Are you sure you want to delete this address?')) return;
+
+    setDeletingAddressId(addressId);
+    try {
+      await addressService.deleteAddress(addressId);
+      await loadAddresses();
+      alert('Address deleted successfully!');
+    } catch (error) {
+      alert(error.message || 'Unable to delete address.');
+    } finally {
+      setDeletingAddressId(null);
+    }
+  };
+
+  const handleSetDefaultAddress = async (addressId) => {
+    try {
+      await addressService.setDefaultAddress(addressId);
+      await loadAddresses();
+    } catch (error) {
+      alert(error.message || 'Unable to set default address.');
     }
   };
 
@@ -68,12 +164,16 @@ const Profile = () => {
         <h1 className="text-4xl font-bold text-gray-900 mb-8">My Profile</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-center mb-6">
-                <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center border-2 border-primary/20">
-                  <User className="w-12 h-12 text-primary" />
-                </div>
+              <div className="flex flex-col items-center justify-center mb-6">
+                <AvatarUploader
+                  avatarUrl={formData.avatar_url}
+                  previewUrl={avatarPreview}
+                  inputRef={fileInputRef}
+                  onClick={() => fileInputRef.current?.click()}
+                  onFileChange={handleAvatarSelect}
+                />
               </div>
 
               {editing ? (
@@ -114,13 +214,86 @@ const Profile = () => {
                   </h2>
                   <p className="text-gray-600 text-center mb-6">{profile?.email}</p>
 
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="w-full bg-primary text-white py-2 rounded-md font-semibold hover:bg-orange-600 transition-colors shadow-md hover:shadow-lg active:scale-[0.98]"
-                  >
-                    Edit Profile
-                  </button>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setEditing(true)}
+                      className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-600"
+                    >
+                      Edit Profile
+                    </button>
+                    <ProfileDropdown
+                      open={dropdownOpen}
+                      onToggle={setDropdownOpen}
+                      onSelect={(action) => {
+                        setDropdownOpen(false);
+                        if (action === 'rename') {
+                          setEditing(true);
+                          return;
+                        }
+                        if (action === 'avatar') {
+                          fileInputRef.current?.click();
+                          return;
+                        }
+                        if (action === 'address') {
+                          setAddressModalOpen(true);
+                          return;
+                        }
+                      }}
+                    />
+                  </div>
                 </>
+              )}
+            </div>
+
+            <div className="bg-white rounded-3xl shadow-sm p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                  <h2 className="text-2xl font-bold text-gray-900">Addresses</h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingAddress(null);
+                    setAddressModalOpen(true);
+                  }}
+                  className="px-4 py-2 text-sm font-semibold bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition"
+                >
+                  + Add Address
+                </button>
+              </div>
+
+              {addressLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500" />
+                </div>
+              ) : addresses.length > 0 ? (
+                <div className="space-y-3">
+                  {addresses.map((address) => (
+                    <AddressCard 
+                      key={address.id} 
+                      address={address}
+                      onEdit={() => setEditingAddress(address) || setAddressModalOpen(true)}
+                      onDelete={() => handleDeleteAddress(address.id)}
+                      onSetDefault={() => handleSetDefaultAddress(address.id)}
+                      loading={deletingAddressId === address.id}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 px-5 py-8 text-center">
+                  <MapPin className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500 font-medium">No addresses saved yet</p>
+                  <button
+                    onClick={() => {
+                      setEditingAddress(null);
+                      setAddressModalOpen(true);
+                    }}
+                    className="mt-4 px-4 py-2 text-sm font-semibold bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition"
+                  >
+                    Add Your First Address
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -183,6 +356,16 @@ const Profile = () => {
                           </div>
                         ))}
                       </div>
+
+                      <div className="flex justify-end pt-4 border-t border-gray-50">
+                        <Link
+                          to={`/order/${order.id}/tracking`}
+                          className="inline-flex items-center px-4 py-2 text-sm font-medium text-primary hover:text-orange-600 border border-primary/20 rounded-lg hover:bg-primary/5 transition-colors"
+                        >
+                          <Package className="w-4 h-4 mr-2" />
+                          Track Order
+                        </Link>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -212,6 +395,18 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      <AddressFormModal
+        open={addressModalOpen}
+        onClose={() => {
+          setAddressModalOpen(false);
+          setEditingAddress(null);
+        }}
+        onSubmit={handleAddressModalSubmit}
+        initialData={editingAddress}
+        title={editingAddress ? 'Edit Address' : 'Add Address'}
+        submitLabel={editingAddress ? 'Update Address' : 'Add Address'}
+      />
     </div>
   );
 };

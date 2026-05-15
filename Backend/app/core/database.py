@@ -4,6 +4,11 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 from .config import settings
 
+if settings.DATABASE_URL.startswith("sqlite"):
+    raise ValueError(
+        "SQLite is no longer supported. Configure DATABASE_URL for MySQL or PostgreSQL."
+    )
+
 
 def ensure_mysql_database_exists(database_url: str) -> None:
     url = make_url(database_url)
@@ -22,12 +27,8 @@ def ensure_mysql_database_exists(database_url: str) -> None:
         server_engine.dispose()
 
 
-connect_args = {}
-if settings.DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-
 ensure_mysql_database_exists(settings.DATABASE_URL)
-engine = create_engine(settings.DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+engine = create_engine(settings.DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

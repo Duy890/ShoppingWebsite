@@ -1,4 +1,6 @@
-from sqlalchemy import func
+from datetime import datetime
+
+from sqlalchemy import func, or_
 from sqlalchemy.orm import joinedload, Session
 
 from . import models
@@ -30,17 +32,156 @@ def create_user(db: Session, email: str, hashed_password: str, full_name: str | 
     return user
 
 
-def update_user_profile(db: Session, user: models.User, full_name: str | None = None) -> models.User:
+def update_user_profile(db: Session, user: models.User, full_name: str | None = None, avatar_url: str | None = None) -> models.User:
     if full_name is not None:
         user.full_name = full_name
+    if avatar_url is not None:
+        user.avatar_url = avatar_url
     db.add(user)
     db.commit()
     db.refresh(user)
     return user
 
 
+def get_addresses_by_user(db: Session, user_id: str) -> list[models.Address]:
+    return (
+        db.query(models.Address)
+        .filter(models.Address.user_id == user_id)
+        .order_by(models.Address.is_default.desc(), models.Address.created_at.desc())
+        .all()
+    )
+
+
+def get_address_by_id(db: Session, address_id: str) -> models.Address | None:
+    return db.query(models.Address).filter(models.Address.id == address_id).first()
+
+
+def unset_default_addresses(db: Session, user_id: str) -> None:
+    db.query(models.Address).filter(models.Address.user_id == user_id, models.Address.is_default == True).update({"is_default": False})
+
+
+def create_address(db: Session, user_id: str, address_data: dict) -> models.Address:
+    if address_data.get("is_default"):
+        unset_default_addresses(db, user_id)
+    elif not db.query(models.Address).filter(models.Address.user_id == user_id).first():
+        address_data["is_default"] = True
+
+    address = models.Address(user_id=user_id, **address_data)
+    db.add(address)
+    db.commit()
+    db.refresh(address)
+    return address
+
+
+def update_address(db: Session, address: models.Address, updates: dict) -> models.Address:
+    if updates.get("is_default"):
+        unset_default_addresses(db, address.user_id)
+
+    for key, value in updates.items():
+        if value is not None:
+            setattr(address, key, value)
+    db.add(address)
+    db.commit()
+    db.refresh(address)
+    return address
+
+
+def delete_address(db: Session, address: models.Address) -> None:
+    user_id = address.user_id
+    will_be_default = address.is_default
+    db.delete(address)
+    db.commit()
+
+    if will_be_default:
+        first_address = (
+            db.query(models.Address)
+            .filter(models.Address.user_id == user_id)
+            .order_by(models.Address.created_at.desc())
+            .first()
+        )
+        if first_address:
+            first_address.is_default = True
+            db.add(first_address)
+            db.commit()
+
+
+def set_default_address(db: Session, address: models.Address) -> models.Address:
+    unset_default_addresses(db, address.user_id)
+    address.is_default = True
+    db.add(address)
+    db.commit()
+    db.refresh(address)
+    return address
+
+
 def get_categories(db: Session) -> list[models.Category]:
     return db.query(models.Category).order_by(models.Category.name).all()
+
+
+def get_categories_tree(db: Session) -> list[dict]:
+    categories = get_categories(db)
+    return [
+        {
+            "id": category.id,
+            "name": category.name,
+            "description": category.description,
+            "children": [],
+        }
+        for category in categories
+    ]
+
+
+def get_search_suggestions(db: Session, query: str, limit: int = 8) -> list[dict]:
+    if not query:
+        return []
+
+    search_value = f"%{query}%"
+    product_matches = (
+        db.query(models.Product)
+        .join(models.Category, isouter=True)
+        .filter(
+            (models.Product.name.ilike(search_value)) |
+            (models.Product.brand.ilike(search_value)) |
+            (models.Product.description.ilike(search_value))
+        )
+        .order_by(models.Product.featured.desc(), models.Product.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    category_matches = (
+        db.query(models.Category)
+        .filter(models.Category.name.ilike(search_value))
+        .order_by(models.Category.name)
+        .limit(4)
+        .all()
+    )
+
+    suggestions = [
+        {
+            "id": product.id,
+            "type": "product",
+            "label": product.name,
+            "subtitle": product.brand or product.sku or "",
+            "category": product.category.name if product.category else None,
+            "image_url": product.image_url,
+        }
+        for product in product_matches
+    ]
+
+    suggestions.extend([
+        {
+            "id": category.id,
+            "type": "category",
+            "label": category.name,
+            "subtitle": category.description or "Browse category",
+            "category": None,
+            "image_url": None,
+        }
+        for category in category_matches
+    ])
+
+    return suggestions
 
 
 def create_category(db: Session, name: str, description: str | None = None) -> models.Category:
@@ -106,6 +247,97 @@ def update_product(db: Session, product: models.Product, updates: dict) -> model
 def delete_product(db: Session, product: models.Product) -> None:
     db.delete(product)
     db.commit()
+
+
+def get_product_specifications(db: Session, product_id: str) -> list[models.ProductSpecification]:
+    return (
+        db.query(models.ProductSpecification)
+        .filter(models.ProductSpecification.product_id == product_id)
+        .order_by(
+            models.ProductSpecification.group_name,
+            models.ProductSpecification.display_order,
+            models.ProductSpecification.created_at,
+        )
+        .all()
+    )
+
+
+def create_product_specification(db: Session, product_id: str, spec_data: dict) -> models.ProductSpecification:
+    spec = models.ProductSpecification(product_id=product_id, **spec_data)
+    db.add(spec)
+    db.commit()
+    db.refresh(spec)
+    return spec
+
+
+def get_product_specification(db: Session, specification_id: str) -> models.ProductSpecification | None:
+    return (
+        db.query(models.ProductSpecification)
+        .filter(models.ProductSpecification.id == specification_id)
+        .first()
+    )
+
+
+def update_product_specification(db: Session, spec: models.ProductSpecification, updates: dict) -> models.ProductSpecification:
+    for key, value in updates.items():
+        if value is not None:
+            setattr(spec, key, value)
+    db.add(spec)
+    db.commit()
+    db.refresh(spec)
+    return spec
+
+
+def delete_product_specification(db: Session, spec: models.ProductSpecification) -> None:
+    db.delete(spec)
+    db.commit()
+
+
+def replace_product_specifications(db: Session, product_id: str, specifications: list[dict]) -> list[models.ProductSpecification]:
+    db.query(models.ProductSpecification).filter(models.ProductSpecification.product_id == product_id).delete()
+    created_specs = [
+        models.ProductSpecification(product_id=product_id, **spec_data)
+        for spec_data in specifications
+    ]
+    db.add_all(created_specs)
+    db.commit()
+    for spec in created_specs:
+        db.refresh(spec)
+    return get_product_specifications(db, product_id)
+
+
+def get_spec_templates(db: Session, product_type: str) -> list[models.SpecTemplate]:
+    return (
+        db.query(models.SpecTemplate)
+        .filter(models.SpecTemplate.product_type == product_type)
+        .order_by(models.SpecTemplate.group_name, models.SpecTemplate.default_order)
+        .all()
+    )
+
+
+def get_spec_template(db: Session, product_type: str, group_name: str, spec_key: str) -> models.SpecTemplate | None:
+    return (
+        db.query(models.SpecTemplate)
+        .filter(
+            models.SpecTemplate.product_type == product_type,
+            models.SpecTemplate.group_name == group_name,
+            models.SpecTemplate.spec_key == spec_key,
+        )
+        .first()
+    )
+
+
+def create_spec_template(db: Session, product_type: str, group_name: str, spec_key: str, default_order: int) -> models.SpecTemplate:
+    template = models.SpecTemplate(
+        product_type=product_type,
+        group_name=group_name,
+        spec_key=spec_key,
+        default_order=default_order,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return template
 
 
 def get_reviews_by_product(db: Session, product_id: str) -> list[models.Review]:
@@ -207,12 +439,13 @@ def clear_cart(db: Session, user_id: str) -> None:
     db.commit()
 
 
-def create_order(db: Session, user_id: str, total_amount: float, shipping_address: str | None, payment_method: str | None) -> models.Order:
+def create_order(db: Session, user_id: str, total_amount: float, shipping_address: str | None, payment_method: str | None, address_id: str | None = None) -> models.Order:
     order = models.Order(
         user_id=user_id,
         total_amount=total_amount,
         shipping_address=shipping_address,
         payment_method=payment_method,
+        address_id=address_id,
         status="pending",
     )
     db.add(order)
@@ -275,3 +508,33 @@ def get_order_count(db: Session) -> int:
 
 def get_total_revenue(db: Session) -> float:
     return db.query(func.coalesce(func.sum(models.Order.total_amount), 0.0)).scalar() or 0.0
+
+
+def create_order_status_history(db: Session, order_id: str, old_status: str | None, new_status: str, note: str | None = None, changed_by: str | None = None) -> models.OrderStatusHistory:
+    history = models.OrderStatusHistory(
+        order_id=order_id,
+        old_status=old_status,
+        new_status=new_status,
+        note=note,
+        changed_by=changed_by
+    )
+    db.add(history)
+    db.commit()
+    db.refresh(history)
+    return history
+
+
+def get_order_status_history(db: Session, order_id: str) -> list[models.OrderStatusHistory]:
+    return db.query(models.OrderStatusHistory).filter(models.OrderStatusHistory.order_id == order_id).order_by(models.OrderStatusHistory.created_at).all()
+
+
+def update_order_tracking(db: Session, order: models.Order, tracking_code: str | None = None, shipping_provider: str | None = None, estimated_delivery: datetime | None = None) -> models.Order:
+    if tracking_code is not None:
+        order.tracking_code = tracking_code
+    if shipping_provider is not None:
+        order.shipping_provider = shipping_provider
+    if estimated_delivery is not None:
+        order.estimated_delivery = estimated_delivery
+    db.commit()
+    db.refresh(order)
+    return order

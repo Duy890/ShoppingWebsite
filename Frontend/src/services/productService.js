@@ -44,6 +44,16 @@ export const productService = {
     return data;
   },
 
+  async getCategoryTree() {
+    const { data } = await api.get('/categories/tree');
+    return data;
+  },
+
+  async getSearchSuggestions(query) {
+    const { data } = await api.get('/search/suggestions', { params: { q: query } });
+    return data;
+  },
+
   async createCategory(category) {
     const { data } = await api.post('/categories', category);
     return data;
@@ -60,6 +70,24 @@ export const productService = {
 
   async addProductReview(productId, review) {
     const { data } = await api.post(`/products/${productId}/reviews`, review);
+    return data;
+  },
+
+  async getProductSpecifications(productId) {
+    const { data } = await api.get(`/products/${productId}/specifications`);
+    return data;
+  },
+
+  async saveProductSpecifications(productId, specifications) {
+    const { data } = await api.put(`/products/${productId}/specifications`, {
+      specifications,
+    });
+    return data;
+  },
+
+  async getSpecTemplates(productType) {
+    if (!productType) return [];
+    const { data } = await api.get(`/spec-templates/${productType}`);
     return data;
   },
 };

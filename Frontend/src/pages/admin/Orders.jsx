@@ -22,11 +22,21 @@ const Orders = () => {
     }
   };
 
-  const handleStatusChange = async (orderId, newStatus) => {
+  const handleStatusChange = async (orderId, newStatus, note = null) => {
     try {
-      await orderService.updateOrderStatus(orderId, newStatus);
+      await orderService.updateOrderStatus(orderId, newStatus, note);
       await loadOrders();
       alert('Order status updated successfully!');
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const handleSimulateNext = async (orderId) => {
+    try {
+      await orderService.simulateNextOrderStatus(orderId);
+      await loadOrders();
+      alert('Order status simulated successfully!');
     } catch (error) {
       alert(error.message);
     }
@@ -107,17 +117,26 @@ const Orders = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={order.status}
-                      onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                      className="text-xs font-bold border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer bg-gray-50"
-                    >
-                      {Object.values(ORDER_STATUS).map((status) => (
-                        <option key={status} value={status}>
-                          {ORDER_STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center space-x-2">
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                        className="text-xs font-bold border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer bg-gray-50"
+                      >
+                        {Object.values(ORDER_STATUS).map((status) => (
+                          <option key={status} value={status}>
+                            {ORDER_STATUS_LABELS[status]}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => handleSimulateNext(order.id)}
+                        className="text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors"
+                        title="Simulate next status"
+                      >
+                        Next
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

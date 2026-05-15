@@ -1,15 +1,25 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .core.database import Base, engine, SessionLocal
 from .controllers import router
 from .core.security import hash_password
 from .repositories import get_user_by_email, create_user
 from .models import *
+from .middleware.error_handlers import (
+    http_exception_handler,
+    validation_exception_handler,
+    database_exception_handler,
+    general_exception_handler,
+)
+from .routes.system import router as system_router
+from .routes.locations import router as locations_router
 
 app = FastAPI(title="e-shop. Backend API")
 
@@ -25,6 +35,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register exception handlers
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(SQLAlchemyError, database_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
+
+# Include routers
+app.include_router(router)
+app.include_router(system_router)
+app.include_router(locations_router)
+
+
 def add_column_if_missing(table_name: str, column_name: str, definition: str) -> None:
     inspector = inspect(engine)
     if table_name not in inspector.get_table_names():
@@ -37,21 +58,11 @@ def add_column_if_missing(table_name: str, column_name: str, definition: str) ->
         connection.commit()
 
 def get_column_definitions() -> dict[str, str]:
-    if engine.dialect.name == "sqlite":
-        return {
-            "role": "role TEXT NOT NULL DEFAULT 'user'",
-            "brand": "brand TEXT",
-            "sku": "sku TEXT",
-            "rating": "rating REAL NOT NULL DEFAULT 0.0",
-            "review_count": "review_count INTEGER NOT NULL DEFAULT 0",
-            "status": "status TEXT NOT NULL DEFAULT 'active'",
-            "view_count": "view_count INTEGER NOT NULL DEFAULT 0",
-            "embedding": "embedding TEXT",
-        }
     return {
         "role": "role VARCHAR(255) NOT NULL DEFAULT 'user'",
         "brand": "brand VARCHAR(255)",
         "sku": "sku VARCHAR(255)",
+        "product_type": "product_type VARCHAR(255)",
         "rating": "rating DOUBLE NOT NULL DEFAULT 0.0",
         "review_count": "review_count INT NOT NULL DEFAULT 0",
         "status": "status VARCHAR(255) NOT NULL DEFAULT 'active'",
@@ -64,6 +75,7 @@ def ensure_schema() -> None:
     add_column_if_missing("users", "role", definitions["role"])
     add_column_if_missing("products", "brand", definitions["brand"])
     add_column_if_missing("products", "sku", definitions["sku"])
+    add_column_if_missing("products", "product_type", definitions["product_type"])
     add_column_if_missing("products", "rating", definitions["rating"])
     add_column_if_missing("products", "review_count", definitions["review_count"])
     add_column_if_missing("products", "status", definitions["status"])
@@ -94,150 +106,179 @@ def get_or_create_product(db, product_data: dict):
     db.refresh(product)
     return product
 
-def create_sample_data(db):
-    if not get_user_by_email(db, "user@example.com"):
-        create_user(
-            db,
-            email="user@example.com",
-            hashed_password=hash_password("userpass"),
-            full_name="Example User",
-            role="user",
+
+def get_or_create_spec_template(db, product_type: str, group_name: str, spec_key: str, default_order: int):
+    template = (
+        db.query(SpecTemplate)
+        .filter(
+            SpecTemplate.product_type == product_type,
+            SpecTemplate.group_name == group_name,
+            SpecTemplate.spec_key == spec_key,
         )
+        .first()
+    )
+    if template:
+        return template
+    template = SpecTemplate(
+        product_type=product_type,
+        group_name=group_name,
+        spec_key=spec_key,
+        default_order=default_order,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return template
 
-    laptops = get_or_create_category(db, "Laptops", "High-performance portable computers.")
-    phones = get_or_create_category(db, "Smartphones", "Next-gen mobile devices.")
-    audio = get_or_create_category(db, "Audio", "Immersive sound and high-fidelity equipment.")
 
-    # High-end Laptops
-    get_or_create_product(db, {
-        "name": "ZenBook Ultra 14 OLED",
-        "description": "Ultrathin laptop with M3 Max equivalent performance and stunning OLED display.",
-        "price": 45000000.0,
-        "stock": 15,
-        "category_id": laptops.id,
-        "image_url": "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?q=80&w=800&auto=format&fit=crop",
-        "brand": "Asus",
-        "sku": "ZB-ULTRA-01",
-        "featured": True,
-        "status": "active",
-        "rating": 4.9,
-        "review_count": 128,
-        "view_count": 1205,
-    })
+def create_spec_templates(db):
+    templates = {
+        "phone": [
+            ("Màn hình", "Kích thước màn hình"),
+            ("Màn hình", "Công nghệ màn hình"),
+            ("Màn hình", "Độ phân giải"),
+            ("Camera", "Camera sau"),
+            ("Camera", "Camera trước"),
+            ("Hiệu năng", "Chip xử lý"),
+            ("Hiệu năng", "RAM"),
+            ("Lưu trữ", "Bộ nhớ trong"),
+            ("Pin và sạc", "Dung lượng pin"),
+            ("Pin và sạc", "Công nghệ sạc"),
+        ],
+        "laptop": [
+            ("Màn hình", "Kích thước màn hình"),
+            ("Màn hình", "Độ phân giải"),
+            ("Hiệu năng", "CPU"),
+            ("Hiệu năng", "GPU"),
+            ("Hiệu năng", "RAM"),
+            ("Lưu trữ", "Ổ cứng"),
+            ("Kết nối", "Cổng kết nối"),
+            ("Pin và sạc", "Thời lượng pin"),
+            ("Thiết kế", "Trọng lượng"),
+        ],
+        "audio": [
+            ("Âm thanh", "Driver"),
+            ("Âm thanh", "Chống ồn"),
+            ("Kết nối", "Chuẩn Bluetooth"),
+            ("Pin và sạc", "Thời lượng pin"),
+            ("Thiết kế", "Trọng lượng"),
+        ],
+    }
+    for product_type, rows in templates.items():
+        for index, (group_name, spec_key) in enumerate(rows):
+            get_or_create_spec_template(db, product_type, group_name, spec_key, index)
 
-    get_or_create_product(db, {
-        "name": "MacBook Pro M3 Max",
-        "description": "The most powerful MacBook ever, designed for creative professionals.",
-        "price": 89000000.0,
-        "stock": 8,
-        "category_id": laptops.id,
-        "image_url": "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=800&auto=format&fit=crop",
-        "brand": "Apple",
-        "sku": "MBP-M3-MAX",
-        "featured": True,
-        "status": "active",
-        "rating": 5.0,
-        "review_count": 245,
-        "view_count": 3402,
-    })
 
-    # High-end Smartphones
-    get_or_create_product(db, {
-        "name": "iPhone 15 Pro Titanium",
-        "description": "Forged in titanium, featuring the groundbreaking A17 Pro chip.",
-        "price": 32000000.0,
-        "stock": 25,
-        "category_id": phones.id,
-        "image_url": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=800&auto=format&fit=crop",
-        "brand": "Apple",
-        "sku": "IPH-15-PRO",
-        "featured": True,
-        "status": "active",
-        "rating": 4.8,
-        "review_count": 512,
-        "view_count": 8901,
-    })
+def get_or_create_gpu_benchmark(db, name: str, score: int, aliases: str | None = None):
+    benchmark = db.query(GpuBenchmark).filter(GpuBenchmark.name == name).first()
+    if benchmark:
+        benchmark.score = score
+        benchmark.aliases = aliases
+        db.commit()
+        return benchmark
+    benchmark = GpuBenchmark(name=name, score=score, aliases=aliases)
+    db.add(benchmark)
+    db.commit()
+    db.refresh(benchmark)
+    return benchmark
 
-    get_or_create_product(db, {
-        "name": "Samsung S24 Ultra",
-        "description": "AI-powered smartphone with 200MP camera and built-in S Pen.",
-        "price": 30000000.0,
-        "stock": 30,
-        "category_id": phones.id,
-        "image_url": "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?q=80&w=800&auto=format&fit=crop",
-        "brand": "Samsung",
-        "sku": "SAM-S24-U",
-        "featured": True,
-        "status": "active",
-        "rating": 4.7,
-        "review_count": 420,
-        "view_count": 5602,
-    })
 
-    # High-end Audio
-    get_or_create_product(db, {
-        "name": "Sony WH-1000XM5",
-        "description": "Industry-leading noise cancelling wireless headphones with exceptional sound.",
-        "price": 8500000.0,
-        "stock": 50,
-        "category_id": audio.id,
-        "image_url": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?q=80&w=800&auto=format&fit=crop",
-        "brand": "Sony",
-        "sku": "SONY-XM5",
-        "featured": True,
-        "status": "active",
-        "rating": 4.9,
-        "review_count": 890,
-        "view_count": 12405,
-    })
+def get_or_create_cpu_benchmark(db, name: str, score: int, aliases: str | None = None):
+    benchmark = db.query(CpuBenchmark).filter(CpuBenchmark.name == name).first()
+    if benchmark:
+        benchmark.score = score
+        benchmark.aliases = aliases
+        db.commit()
+        return benchmark
+    benchmark = CpuBenchmark(name=name, score=score, aliases=aliases)
+    db.add(benchmark)
+    db.commit()
+    db.refresh(benchmark)
+    return benchmark
 
-    get_or_create_product(db, {
-        "name": "Bose QuietComfort Ultra",
-        "description": "Bose’s most advanced noise cancelling earbuds yet, for immersive listening.",
-        "price": 7500000.0,
-        "stock": 40,
-        "category_id": audio.id,
-        "image_url": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?q=80&w=800&auto=format&fit=crop",
-        "brand": "Bose",
-        "sku": "BOSE-QC-ULTRA",
-        "featured": True,
-        "status": "active",
-        "rating": 4.8,
-        "review_count": 310,
-        "view_count": 4502,
-    })
 
-    get_or_create_product(db, {
-        "name": "Pro Gaming Laptop G16",
-        "description": "Unleash your gaming potential with RTX 4080 and 240Hz display.",
-        "price": 55000000.0,
-        "stock": 10,
-        "category_id": laptops.id,
-        "image_url": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?q=80&w=800&auto=format&fit=crop",
-        "brand": "ShopPro",
-        "sku": "SP-GAME-G16",
-        "featured": True,
-        "status": "active",
-        "rating": 4.6,
-        "review_count": 85,
-        "view_count": 2105,
-    })
+def get_or_create_game_requirement(db, game_data: dict):
+    requirement = db.query(GameRequirement).filter(GameRequirement.game_name == game_data["game_name"]).first()
+    if requirement:
+        for key, value in game_data.items():
+            setattr(requirement, key, value)
+        db.commit()
+        return requirement
+    requirement = GameRequirement(**game_data)
+    db.add(requirement)
+    db.commit()
+    db.refresh(requirement)
+    return requirement
 
-    get_or_create_product(db, {
-        "name": "Studio Master Pro Headphones",
-        "description": "Reference-grade open-back headphones for studio mixing and mastering.",
-        "price": 12000000.0,
-        "stock": 12,
-        "category_id": audio.id,
-        "image_url": "https://images.unsplash.com/photo-1583394838336-acd977736f90?q=80&w=800&auto=format&fit=crop",
-        "brand": "AudioTech",
-        "sku": "AT-STUDIO-PRO",
-        "featured": True,
-        "status": "active",
-        "rating": 5.0,
-        "review_count": 42,
-        "view_count": 1502,
-    })
+
+def create_gaming_benchmark_data(db):
+    gpu_rows = [
+        ("NVIDIA GeForce RTX 4050", 11500, "rtx 4050,geforce rtx 4050"),
+        ("NVIDIA GeForce RTX 4060", 14500, "rtx 4060,geforce rtx 4060"),
+        ("NVIDIA GeForce RTX 4070", 18500, "rtx 4070,geforce rtx 4070"),
+        ("NVIDIA GeForce RTX 4080", 26000, "rtx 4080,geforce rtx 4080"),
+        ("NVIDIA GeForce RTX 4090", 33000, "rtx 4090,geforce rtx 4090"),
+        ("NVIDIA GeForce GTX 1650", 7000, "gtx 1650,geforce gtx 1650"),
+        ("AMD Radeon RX 6600", 13500, "radeon rx 6600,rx 6600"),
+        ("Apple M3 Max GPU", 22000, "m3 max gpu,apple m3 max gpu"),
+    ]
+    for name, score, aliases in gpu_rows:
+        get_or_create_gpu_benchmark(db, name, score, aliases)
+
+    cpu_rows = [
+        ("Intel Core i5-12450H", 12500, "core i5 12450h,intel i5 12450h"),
+        ("Intel Core i7-13700H", 18500, "core i7 13700h,intel i7 13700h"),
+        ("Intel Core i9-13900H", 21500, "core i9 13900h,intel i9 13900h"),
+        ("AMD Ryzen 5 5600H", 13500, "ryzen 5 5600h"),
+        ("AMD Ryzen 7 7840HS", 19500, "ryzen 7 7840hs"),
+        ("Apple M3 Max", 22000, "m3 max,apple m3 max"),
+    ]
+    for name, score, aliases in cpu_rows:
+        get_or_create_cpu_benchmark(db, name, score, aliases)
+
+    game_rows = [
+        {
+            "game_name": "Cyberpunk 2077",
+            "aliases": "cyberpunk,cyberpunk 2077",
+            "min_gpu_score": 7000,
+            "recommended_gpu_score": 11500,
+            "ultra_gpu_score": 22000,
+            "min_cpu_score": 9000,
+            "recommended_cpu_score": 12500,
+            "ultra_cpu_score": 18500,
+            "min_ram_gb": 8,
+            "recommended_ram_gb": 16,
+            "ultra_ram_gb": 16,
+        },
+        {
+            "game_name": "AAA Games",
+            "aliases": "aaa,aaa games,modern aaa games",
+            "min_gpu_score": 9000,
+            "recommended_gpu_score": 14500,
+            "ultra_gpu_score": 26000,
+            "min_cpu_score": 10000,
+            "recommended_cpu_score": 15000,
+            "ultra_cpu_score": 20000,
+            "min_ram_gb": 16,
+            "recommended_ram_gb": 16,
+            "ultra_ram_gb": 32,
+        },
+        {
+            "game_name": "Valorant",
+            "aliases": "valorant",
+            "min_gpu_score": 3000,
+            "recommended_gpu_score": 6000,
+            "ultra_gpu_score": 9000,
+            "min_cpu_score": 4000,
+            "recommended_cpu_score": 8000,
+            "ultra_cpu_score": 11000,
+            "min_ram_gb": 4,
+            "recommended_ram_gb": 8,
+            "ultra_ram_gb": 16,
+        },
+    ]
+    for game_data in game_rows:
+        get_or_create_game_requirement(db, game_data)
 
 ensure_schema()
 Base.metadata.create_all(bind=engine)
@@ -254,7 +295,8 @@ def startup_event():
                 full_name="Admin User",
                 role="admin",
             )
-        create_sample_data(db)
+        create_spec_templates(db)
+        create_gaming_benchmark_data(db)
     finally:
         db.close()
 

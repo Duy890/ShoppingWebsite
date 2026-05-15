@@ -15,6 +15,7 @@ import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { productService } from '../services/productService';
 import StarRating from '../components/StarRating';
+import ProductSpecifications from '../components/ProductSpecifications';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -23,6 +24,8 @@ const ProductDetail = () => {
   const { isAuthenticated, user } = useAuth();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [specifications, setSpecifications] = useState({});
+  const [activeTab, setActiveTab] = useState('specifications');
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
@@ -31,15 +34,24 @@ const ProductDetail = () => {
   useEffect(() => {
     loadProduct();
     loadReviews();
+    loadSpecifications();
     window.scrollTo(0, 0);
   }, [id]);
 
   const loadProduct = async () => {
     try {
       const data = await productService.getProductById(id);
+      if (!data) {
+        navigate('/404', { replace: true });
+        return;
+      }
       setProduct(data);
     } catch (error) {
       console.error('Error loading product:', error);
+      // Navigate to 404 if product not found (API interceptor handles this too)
+      if (error.response?.status === 404) {
+        navigate('/404', { replace: true });
+      }
     } finally {
       setLoading(false);
     }
@@ -51,6 +63,16 @@ const ProductDetail = () => {
       setReviews(data);
     } catch (error) {
       console.error('Error loading reviews:', error);
+    }
+  };
+
+  const loadSpecifications = async () => {
+    try {
+      const data = await productService.getProductSpecifications(id);
+      setSpecifications(data);
+    } catch (error) {
+      console.error('Error loading specifications:', error);
+      setSpecifications({});
     }
   };
 
@@ -248,30 +270,39 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* Technical Specs (Mockup) */}
-        <div className="mt-24 space-y-12">
-          <div className="flex items-center space-x-2 text-primary">
-            <div className="h-1 w-8 bg-primary rounded-full" />
-            <span className="text-xs font-bold uppercase tracking-widest">Specifications</span>
+        <div className="mt-24 space-y-8">
+          <div className="flex flex-wrap gap-3 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setActiveTab('description')}
+              className={`px-5 py-4 text-sm font-black uppercase tracking-widest transition-colors ${
+                activeTab === 'description'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-400 hover:text-gray-900'
+              }`}
+            >
+              Mô tả sản phẩm
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('specifications')}
+              className={`px-5 py-4 text-sm font-black uppercase tracking-widest transition-colors ${
+                activeTab === 'specifications'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-400 hover:text-gray-900'
+              }`}
+            >
+              Thông số kỹ thuật
+            </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-20 gap-y-4 border-b border-gray-100 pb-12">
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Model Name</span>
-               <span className="text-sm font-bold text-gray-900">{product.name}</span>
-             </div>
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Brand</span>
-               <span className="text-sm font-bold text-gray-900">{product.brand || 'Original'}</span>
-             </div>
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">SKU</span>
-               <span className="text-sm font-bold text-gray-900">{product.sku || 'N/A'}</span>
-             </div>
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Warranty</span>
-               <span className="text-sm font-bold text-gray-900">12 Months</span>
-             </div>
-          </div>
+
+          {activeTab === 'description' ? (
+            <div className="rounded-2xl bg-gray-50 p-8 text-gray-600 leading-8">
+              {product.description || 'Chưa có mô tả chi tiết cho sản phẩm này.'}
+            </div>
+          ) : (
+            <ProductSpecifications specifications={specifications} />
+          )}
         </div>
 
         {/* Reviews Section */}

@@ -1,17 +1,29 @@
 export const ORDER_STATUS = {
   PENDING: 'pending',
+  CONFIRMED: 'confirmed',
   PROCESSING: 'processing',
   SHIPPED: 'shipped',
+  OUT_FOR_DELIVERY: 'out_for_delivery',
   DELIVERED: 'delivered',
   CANCELLED: 'cancelled',
+  PAYMENT_FAILED: 'payment_failed',
+  RETURN_REQUESTED: 'return_requested',
+  RETURNED: 'returned',
+  REFUNDED: 'refunded',
 };
 
 export const ORDER_STATUS_LABELS = {
   pending: 'Pending',
+  confirmed: 'Confirmed',
   processing: 'Processing',
   shipped: 'Shipped',
+  out_for_delivery: 'Out for Delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
+  payment_failed: 'Payment Failed',
+  return_requested: 'Return Requested',
+  returned: 'Returned',
+  refunded: 'Refunded',
 };
 
 export const PAYMENT_METHODS = {
