@@ -13,9 +13,13 @@ This is the FastAPI backend for the Shop storefront.
 
    pip install -r requirements.txt
 
-3. To use PostgreSQL instead of the default SQLite database, create a `.env` file with a `DATABASE_URL` like:
+3. Configure a supported SQL database by creating a `.env` file with a `DATABASE_URL` for MySQL or PostgreSQL, for example:
 
+   # PostgreSQL example
    DATABASE_URL=postgresql+psycopg2://postgres:password@localhost:5432/shopdb
+
+   # MySQL example
+   DATABASE_URL=mysql+pymysql://root:password@localhost:3306/shopdb
 
    Then install dependencies and start the server.
 

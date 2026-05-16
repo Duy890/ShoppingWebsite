@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, ShieldCheck, CreditCard, Truck } from 'lucide-react';
 import { formatPrice } from '../utils/formatPrice';
 import { useCart } from '../hooks/useCart';
 import { orderService } from '../services/orderService';
+import AddressSelector from '../components/AddressSelector';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '../utils/constants';
+import { formatAddress } from '../utils/addressValidation';
 
 const Checkout = () => {
   const navigate = useNavigate();
   const { items, cartTotal, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const [selectedAddress, setSelectedAddress] = useState(null);
   const [formData, setFormData] = useState({
-    shipping_address: '',
     paymentMethod: PAYMENT_METHODS.CREDIT_CARD,
   });
 
@@ -19,8 +21,18 @@ const Checkout = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleAddressSelect = (address) => {
+    setSelectedAddress(address);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!selectedAddress) {
+      alert('Please select a delivery address');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -29,7 +41,8 @@ const Checkout = () => {
           product_id: item.product_id,
           quantity: item.quantity,
         })),
-        shipping_address: formData.shipping_address,
+        address_id: selectedAddress.id,
+        shipping_address: formatAddress(selectedAddress),
         payment_method: formData.paymentMethod,
       };
 
@@ -58,31 +71,23 @@ const Checkout = () => {
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* Shipping Section */}
               <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
-                <div className="flex items-center space-x-3 mb-2">
-                  <div className="bg-primary/10 p-2 rounded-lg text-primary">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="bg-orange-500/10 p-2 rounded-lg text-orange-500">
                     <Truck className="w-5 h-5" />
                   </div>
                   <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Shipping Details</h2>
                 </div>
                 
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Delivery Address</label>
-                  <textarea
-                    name="shipping_address"
-                    value={formData.shipping_address}
-                    onChange={handleChange}
-                    required
-                    placeholder="Enter your full shipping address..."
-                    rows={4}
-                    className="w-full bg-gray-50 border border-gray-100 px-4 py-4 rounded-2xl text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  />
-                </div>
+                <AddressSelector 
+                  selectedAddressId={selectedAddress?.id}
+                  onAddressSelect={handleAddressSelect}
+                />
               </div>
 
               {/* Payment Section */}
               <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 space-y-6">
-                <div className="flex items-center space-x-3 mb-2">
-                  <div className="bg-primary/10 p-2 rounded-lg text-primary">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="bg-orange-500/10 p-2 rounded-lg text-orange-500">
                     <CreditCard className="w-5 h-5" />
                   </div>
                   <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Payment Method</h2>
@@ -94,7 +99,7 @@ const Checkout = () => {
                       key={value} 
                       className={`flex items-center space-x-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                         formData.paymentMethod === value 
-                          ? 'border-primary bg-primary/5' 
+                          ? 'border-orange-500 bg-orange-50' 
                           : 'border-gray-50 bg-gray-50 hover:border-gray-200'
                       }`}
                     >
@@ -104,7 +109,7 @@ const Checkout = () => {
                         value={value}
                         checked={formData.paymentMethod === value}
                         onChange={handleChange}
-                        className="w-4 h-4 text-primary focus:ring-primary border-gray-300"
+                        className="w-4 h-4 accent-orange-500"
                       />
                       <span className="text-sm font-bold text-gray-700">{PAYMENT_METHOD_LABELS[value]}</span>
                     </label>
@@ -112,8 +117,8 @@ const Checkout = () => {
                 </div>
               </div>
 
-              <div className="bg-primary/5 rounded-2xl p-6 flex items-start space-x-4 border border-primary/10">
-                <ShieldCheck className="w-6 h-6 text-primary shrink-0" />
+              <div className="bg-orange-50/50 rounded-2xl p-6 flex items-start space-x-4 border border-orange-200">
+                <ShieldCheck className="w-6 h-6 text-orange-600 shrink-0" />
                 <p className="text-xs text-gray-600 leading-relaxed font-medium">
                   Your purchase is protected. We use industry-standard encryption to ensure your data stays safe and private. By clicking "Complete Purchase", you agree to our Terms of Service.
                 </p>
@@ -121,8 +126,8 @@ const Checkout = () => {
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-gray-900 text-white py-6 rounded-2xl text-lg font-black uppercase tracking-widest hover:bg-primary transition-all duration-300 disabled:bg-gray-200 shadow-2xl shadow-gray-900/10 flex items-center justify-center space-x-3"
+                disabled={loading || !selectedAddress}
+                className="w-full bg-gray-900 text-white py-6 rounded-2xl text-lg font-black uppercase tracking-widest hover:bg-orange-600 transition-all duration-300 disabled:bg-gray-300 disabled:cursor-not-allowed shadow-2xl shadow-gray-900/10 flex items-center justify-center space-x-3"
               >
                 {loading ? 'Processing Transaction...' : 'Complete Purchase'}
               </button>

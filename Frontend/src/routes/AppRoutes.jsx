@@ -1,10 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import ErrorBoundary from '../components/ErrorBoundary';
 import MainLayout from '../layouts/MainLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import Home from '../pages/Home';
 import ProductList from '../pages/ProductList';
 import ProductDetail from '../pages/ProductDetail';
+import SearchResults from '../pages/SearchResults';
+import CategoryPage from '../pages/CategoryPage';
 import Cart from '../pages/Cart';
 import Checkout from '../pages/Checkout';
 import Login from '../pages/Login';
@@ -15,6 +18,11 @@ import Products from '../pages/admin/Products';
 import AddProduct from '../pages/admin/AddProduct';
 import Categories from '../pages/admin/Categories';
 import Orders from '../pages/admin/Orders';
+import NotFound from '../pages/NotFound';
+import ServerError from '../pages/ServerError';
+import Maintenance from '../pages/Maintenance';
+import AccessDenied from '../pages/AccessDenied';
+import OrderTracking from '../pages/OrderTracking';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -22,7 +30,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
   }
@@ -32,7 +40,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (adminOnly && user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/403" replace />;
   }
 
   return children;
@@ -40,54 +48,77 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
 const AppRoutes = () => {
   return (
-    <Routes>
-      <Route element={<MainLayout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/products" element={<ProductList />} />
-        <Route path="/product/:id" element={<ProductDetail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route
-          path="/cart"
-          element={
-            <ProtectedRoute>
-              <Cart />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute>
-              <Checkout />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          }
-        />
-      </Route>
+    <ErrorBoundary>
+      <Routes>
+        {/* Error Pages */}
+        <Route path="/404" element={<NotFound />} />
+        <Route path="/500" element={<ServerError />} />
+        <Route path="/maintenance" element={<Maintenance />} />
+        <Route path="/403" element={<AccessDenied />} />
 
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute adminOnly>
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="products" element={<Products />} />
-        <Route path="products/add" element={<AddProduct />} />
-        <Route path="categories" element={<Categories />} />
-        <Route path="orders" element={<Orders />} />
-      </Route>
-    </Routes>
+        {/* Main Routes */}
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/search" element={<SearchResults />} />
+          <Route path="/category/:categoryId" element={<CategoryPage />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/cart"
+            element={
+              <ProtectedRoute>
+                <Cart />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order/:orderId/tracking"
+            element={
+              <ProtectedRoute>
+                <OrderTracking />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute adminOnly>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="products" element={<Products />} />
+          <Route path="products/add" element={<AddProduct />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="orders" element={<Orders />} />
+        </Route>
+
+        {/* Catch-all route - 404 */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </ErrorBoundary>
   );
 };
 

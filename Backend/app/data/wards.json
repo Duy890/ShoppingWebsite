@@ -1,0 +1,135 @@
+{
+  "001": [
+    { "code": "00101", "name": "Hàng Bạc", "type": "Phường" },
+    { "code": "00102", "name": "Hàng Gai", "type": "Phường" },
+    { "code": "00103", "name": "Hàng Đào", "type": "Phường" },
+    { "code": "00104", "name": "Cửa Đông", "type": "Phường" },
+    { "code": "00105", "name": "Cửa Nam", "type": "Phường" },
+    { "code": "00106", "name": "Tràng Tiền", "type": "Phường" },
+    { "code": "00107", "name": "Phúc Tân", "type": "Phường" },
+    { "code": "00108", "name": "Quảng An", "type": "Phường" }
+  ],
+  "002": [
+    { "code": "00201", "name": "Phúc Xá", "type": "Phường" },
+    { "code": "00202", "name": "Cống Vị", "type": "Phường" },
+    { "code": "00203", "name": "Giải Phóng", "type": "Phường" },
+    { "code": "00204", "name": "Quốc Tử Giám", "type": "Phường" },
+    { "code": "00205", "name": "Trúc Bạch", "type": "Phường" },
+    { "code": "00206", "name": "Liễu Giai", "type": "Phường" }
+  ],
+  "003": [
+    { "code": "00301", "name": "Quảng Khánh", "type": "Phường" },
+    { "code": "00302", "name": "Bưởi", "type": "Phường" },
+    { "code": "00303", "name": "Nhật Tân", "type": "Phường" },
+    { "code": "00304", "name": "Tứ Liên", "type": "Phường" }
+  ],
+  "301": [
+    { "code": "30101", "name": "Bến Nghé", "type": "Phường" },
+    { "code": "30102", "name": "Tân Định", "type": "Phường" },
+    { "code": "30103", "name": "Đa Kao", "type": "Phường" }
+  ],
+  "302": [
+    { "code": "30201", "name": "An Phú", "type": "Phường" },
+    { "code": "30202", "name": "An Khánh", "type": "Phường" },
+    { "code": "30203", "name": "Cát Lái", "type": "Phường" }
+  ],
+  "303": [
+    { "code": "30301", "name": "Phạm Ngũ Lão", "type": "Phường" },
+    { "code": "30302", "name": "Võ Thị Sáu", "type": "Phường" },
+    { "code": "30303", "name": "Nguyễn Hữu Cảnh", "type": "Phường" }
+  ],
+  "304": [
+    { "code": "30401", "name": "Thạnh Mỹ Lợi", "type": "Phường" },
+    { "code": "30402", "name": "Thao Điền", "type": "Phường" }
+  ],
+  "305": [
+    { "code": "30501", "name": "Tân Thới Hiệp", "type": "Phường" },
+    { "code": "30502", "name": "Tân Hưng Thuận Đông", "type": "Phường" },
+    { "code": "30503", "name": "Tân Hưng Thuận Tây", "type": "Phường" }
+  ],
+  "306": [
+    { "code": "30601", "name": "Phú Thọ Hoà", "type": "Phường" },
+    { "code": "30602", "name": "Phú Thượng", "type": "Phường" },
+    { "code": "30603", "name": "Tân Thành", "type": "Phường" }
+  ],
+  "307": [
+    { "code": "30701", "name": "Phú Mỹ Hưng", "type": "Phường" },
+    { "code": "30702", "name": "Tân Hưng", "type": "Phường" },
+    { "code": "30703", "name": "Tân Quy", "type": "Phường" }
+  ],
+  "308": [
+    { "code": "30801", "name": "Thạnh Lộc", "type": "Phường" },
+    { "code": "30802", "name": "Linh Chiểu", "type": "Phường" },
+    { "code": "30803", "name": "Linh Đông", "type": "Phường" }
+  ],
+  "309": [
+    { "code": "30901", "name": "Phước Long A", "type": "Phường" },
+    { "code": "30902", "name": "Phước Long B", "type": "Phường" },
+    { "code": "30903", "name": "Trường Thọ", "type": "Phường" }
+  ],
+  "310": [
+    { "code": "31001", "name": "Phạm Văn Hai", "type": "Phường" },
+    { "code": "31002", "name": "Võ Thị Sáu", "type": "Phường" },
+    { "code": "31003", "name": "Hòa Hưng", "type": "Phường" }
+  ],
+  "311": [
+    { "code": "31101", "name": "Chợ Lớn", "type": "Phường" },
+    { "code": "31102", "name": "An Hòa", "type": "Phường" },
+    { "code": "31103", "name": "Tân Kiến", "type": "Phường" }
+  ],
+  "312": [
+    { "code": "31201", "name": "Hiệp Thành", "type": "Phường" },
+    { "code": "31202", "name": "Tân Chánh Hiệp", "type": "Phường" },
+    { "code": "31203", "name": "Tân Thới Nhất", "type": "Phường" }
+  ],
+  "313": [
+    { "code": "31301", "name": "Sơn Kỳ", "type": "Phường" },
+    { "code": "31302", "name": "Tây Thạnh", "type": "Phường" },
+    { "code": "31303", "name": "Phú Thạnh", "type": "Phường" }
+  ],
+  "314": [
+    { "code": "31401", "name": "Phú Thạnh", "type": "Phường" },
+    { "code": "31402", "name": "Tân Phú", "type": "Phường" },
+    { "code": "31403", "name": "Sơn Kỳ", "type": "Phường" }
+  ],
+  "315": [
+    { "code": "31501", "name": "Tân Hoa", "type": "Phường" },
+    { "code": "31502", "name": "Tân Thành", "type": "Phường" },
+    { "code": "31503", "name": "Tân Hương", "type": "Phường" }
+  ],
+  "316": [
+    { "code": "31601", "name": "Bình Chiểu", "type": "Phường" },
+    { "code": "31602", "name": "Tân Bình", "type": "Phường" },
+    { "code": "31603", "name": "Tân Thạnh", "type": "Phường" }
+  ],
+  "317": [
+    { "code": "31701", "name": "Phú Trung", "type": "Phường" },
+    { "code": "31702", "name": "Phú Nhuận", "type": "Phường" },
+    { "code": "31703", "name": "Phú Thọ", "type": "Phường" }
+  ],
+  "401": [
+    { "code": "40101", "name": "Cái Khế", "type": "Phường" },
+    { "code": "40102", "name": "Cái Trăng", "type": "Phường" },
+    { "code": "40103", "name": "Xuân Khánh", "type": "Phường" }
+  ],
+  "402": [
+    { "code": "40201", "name": "Bình Thủy", "type": "Phường" },
+    { "code": "40202", "name": "Long Hòa", "type": "Phường" },
+    { "code": "40203", "name": "Long Tuyền", "type": "Phường" }
+  ],
+  "403": [
+    { "code": "40301", "name": "Cái Khế", "type": "Phường" },
+    { "code": "40302", "name": "Cái Tắc", "type": "Phường" },
+    { "code": "40303", "name": "Cái Rồng", "type": "Phường" }
+  ],
+  "404": [
+    { "code": "40401", "name": "Châu Văn Liêm", "type": "Phường" },
+    { "code": "40402", "name": "Thạnh An", "type": "Phường" },
+    { "code": "40403", "name": "Thạnh Lợi", "type": "Phường" }
+  ],
+  "405": [
+    { "code": "40501", "name": "Thốt Nốt A", "type": "Phường" },
+    { "code": "40502", "name": "Thốt Nốt B", "type": "Phường" },
+    { "code": "40503", "name": "Thốt Nốt C", "type": "Phường" }
+  ]
+}

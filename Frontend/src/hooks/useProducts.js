@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setProducts,
@@ -10,30 +10,48 @@ import {
 } from '../store/productSlice';
 import { productService } from '../services/productService';
 
+const useDeepCompareRef = (value) => {
+  const ref = useRef(value);
+  const stringVal = JSON.stringify(value);
+  if (stringVal !== JSON.stringify(ref.current)) {
+    ref.current = value;
+  }
+  return ref;
+};
+
 export const useProducts = () => {
   const dispatch = useDispatch();
-  const { products, categories, selectedProduct, loading, error, filters } =
-    useSelector((state) => state.product);
+
+  const products = useSelector((state) => state.product.products);
+  const categories = useSelector((state) => state.product.categories);
+  const selectedProduct = useSelector((state) => state.product.selectedProduct);
+  const loading = useSelector((state) => state.product.loading);
+  const error = useSelector((state) => state.product.error);
+  const filters = useSelector((state) => state.product.filters);
+
+  const prevFiltersRef = useRef(null);
+
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     loadCategories();
   }, []);
 
   useEffect(() => {
-    loadProducts();
+    const currentStr = JSON.stringify(filters);
+    const prevStr = JSON.stringify(prevFiltersRef.current);
+    if (currentStr === prevStr) return;
+    prevFiltersRef.current = filters;
+    loadProducts(filters);
   }, [filters]);
 
-  const loadProducts = async () => {
-    try {
-      dispatch(setLoading(true));
-      const data = await productService.getProducts(filters);
-      dispatch(setProducts(data));
-    } catch (err) {
-      dispatch(setError(err.message));
-    } finally {
-      dispatch(setLoading(false));
-    }
-  };
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const loadCategories = async () => {
     try {
@@ -41,6 +59,33 @@ export const useProducts = () => {
       dispatch(setCategories(data));
     } catch (err) {
       dispatch(setError(err.message));
+    }
+  };
+
+  const loadProducts = async (overrideFilters) => {
+    const requestFilters = overrideFilters ?? filters;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      dispatch(setLoading(true));
+      dispatch(setProducts([]));
+      const data = await productService.getProducts(requestFilters, abortController.signal);
+      dispatch(setProducts(data));
+    } catch (err) {
+      if (err?.name === 'CanceledError' || err?.name === 'AbortError' || err?.code === 'ERR_CANCELED') {
+        return;
+      }
+      dispatch(setError(err.message || 'Failed to load products'));
+    } finally {
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
+      dispatch(setLoading(false));
     }
   };
 
@@ -126,9 +171,9 @@ export const useProducts = () => {
     }
   };
 
-  const updateFilters = (newFilters) => {
+  const updateFilters = useCallback((newFilters) => {
     dispatch(setFilters(newFilters));
-  };
+  }, [dispatch]);
 
   return {
     products,

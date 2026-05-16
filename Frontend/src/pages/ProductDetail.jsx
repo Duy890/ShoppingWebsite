@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ShoppingCart, 
-  ArrowLeft, 
-  Star, 
-  ShieldCheck, 
-  Truck, 
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ShoppingCart,
+  ArrowLeft,
+  Star,
+  ShieldCheck,
+  Truck,
   RefreshCcw,
   Plus,
   Minus
@@ -15,31 +15,77 @@ import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { productService } from '../services/productService';
 import StarRating from '../components/StarRating';
+import ProductSpecifications from '../components/ProductSpecifications';
+import VariantSelector from '../components/VariantSelector';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [specifications, setSpecifications] = useState({});
+  const [activeTab, setActiveTab] = useState('specifications');
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [displayPrice, setDisplayPrice] = useState(null);
 
   useEffect(() => {
     loadProduct();
     loadReviews();
+    loadSpecifications();
     window.scrollTo(0, 0);
   }, [id]);
 
   const loadProduct = async () => {
     try {
       const data = await productService.getProductById(id);
+      if (!data) {
+        navigate('/404', { replace: true });
+        return;
+      }
       setProduct(data);
+      setDisplayPrice(data.price);
+
+      if (data.variants && data.variants.length > 0) {
+        const colorParam = searchParams.get('color');
+        const versionParam = searchParams.get('version');
+        let variant = null;
+
+        if (colorParam || versionParam) {
+          variant = data.variants.find(v => {
+            const matchColor = !colorParam || v.color_code === colorParam;
+            const versionStr = `${v.ram}|${v.storage}`;
+            const matchVersion = !versionParam || v.version_name === versionParam || versionStr === versionParam;
+            return matchColor && matchVersion;
+          });
+        }
+
+        variant = variant || data.variants.find(v => v.is_default) || data.variants[0];
+        setSelectedVariant(variant);
+        setDisplayPrice(variant.price || data.price);
+
+        const newParams = new URLSearchParams();
+        if (variant.color_code) {
+          newParams.set('color', variant.color_code);
+        }
+        if (variant.version_name) {
+          newParams.set('version', variant.version_name);
+        } else if (variant.ram || variant.storage) {
+          newParams.set('version', `${variant.ram}|${variant.storage}`);
+        }
+        setSearchParams(newParams);
+      }
     } catch (error) {
       console.error('Error loading product:', error);
+      if (error.response?.status === 404) {
+        navigate('/404', { replace: true });
+      }
     } finally {
       setLoading(false);
     }
@@ -51,6 +97,16 @@ const ProductDetail = () => {
       setReviews(data);
     } catch (error) {
       console.error('Error loading reviews:', error);
+    }
+  };
+
+  const loadSpecifications = async () => {
+    try {
+      const data = await productService.getProductSpecifications(id);
+      setSpecifications(data);
+    } catch (error) {
+      console.error('Error loading specifications:', error);
+      setSpecifications({});
     }
   };
 
@@ -82,12 +138,28 @@ const ProductDetail = () => {
       return;
     }
     try {
-      await addToCart(product.id, quantity);
-      // Redirect to cart for the "Happy Path" prototype experience
+      await addToCart(product.id, quantity, selectedVariant?.id);
       navigate('/cart');
     } catch (error) {
       alert(error.message);
     }
+  };
+
+  const handleVariantChange = (variant) => {
+    setSelectedVariant(variant);
+    setDisplayPrice(variant.price || product.price);
+    setQuantity(1);
+
+    const newParams = new URLSearchParams();
+    if (variant.color_code) {
+      newParams.set('color', variant.color_code);
+    }
+    if (variant.version_name) {
+      newParams.set('version', variant.version_name);
+    } else if (variant.ram || variant.storage) {
+      newParams.set('version', `${variant.ram}|${variant.storage}`);
+    }
+    setSearchParams(newParams);
   };
 
   if (loading) {
@@ -182,13 +254,22 @@ const ProductDetail = () => {
               </div>
 
               <div className="text-5xl font-black text-primary tracking-tighter">
-                {formatPrice(product.price)}
+                {formatPrice(displayPrice || product.price)}
               </div>
 
               <p className="text-gray-500 leading-relaxed text-lg">
                 {product.description}
               </p>
             </div>
+
+            {/* Variant Selection */}
+            {product.variants && product.variants.length > 0 && (
+              <VariantSelector
+                variants={product.variants}
+                currentVariant={selectedVariant}
+                onVariantChange={handleVariantChange}
+              />
+            )}
 
             {/* Selection & Actions */}
             <div className="py-8 space-y-8">
@@ -248,30 +329,39 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* Technical Specs (Mockup) */}
-        <div className="mt-24 space-y-12">
-          <div className="flex items-center space-x-2 text-primary">
-            <div className="h-1 w-8 bg-primary rounded-full" />
-            <span className="text-xs font-bold uppercase tracking-widest">Specifications</span>
+        <div className="mt-24 space-y-8">
+          <div className="flex flex-wrap gap-3 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={() => setActiveTab('description')}
+              className={`px-5 py-4 text-sm font-black uppercase tracking-widest transition-colors ${
+                activeTab === 'description'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-400 hover:text-gray-900'
+              }`}
+            >
+              Mô tả sản phẩm
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('specifications')}
+              className={`px-5 py-4 text-sm font-black uppercase tracking-widest transition-colors ${
+                activeTab === 'specifications'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-400 hover:text-gray-900'
+              }`}
+            >
+              Thông số kỹ thuật
+            </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-20 gap-y-4 border-b border-gray-100 pb-12">
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Model Name</span>
-               <span className="text-sm font-bold text-gray-900">{product.name}</span>
-             </div>
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Brand</span>
-               <span className="text-sm font-bold text-gray-900">{product.brand || 'Original'}</span>
-             </div>
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">SKU</span>
-               <span className="text-sm font-bold text-gray-900">{product.sku || 'N/A'}</span>
-             </div>
-             <div className="flex justify-between py-4 border-b border-gray-50">
-               <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Warranty</span>
-               <span className="text-sm font-bold text-gray-900">12 Months</span>
-             </div>
-          </div>
+
+          {activeTab === 'description' ? (
+            <div className="rounded-2xl bg-gray-50 p-8 text-gray-600 leading-8">
+              {product.description || 'Chưa có mô tả chi tiết cho sản phẩm này.'}
+            </div>
+          ) : (
+            <ProductSpecifications specifications={specifications} />
+          )}
         </div>
 
         {/* Reviews Section */}

@@ -10,6 +10,8 @@ const initialState = {
     category: null,
     search: '',
     sortBy: 'created_at',
+    type: null,
+    brand: null,
   },
 };
 
@@ -40,6 +42,8 @@ const productSlice = createSlice({
         category: null,
         search: '',
         sortBy: 'created_at',
+        type: null,
+        brand: null,
       };
     },
   },

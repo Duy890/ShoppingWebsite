@@ -2,6 +2,16 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../hooks/useProducts';
 import { productService } from '../../services/productService';
+import SpecificationEditor from '../../components/SpecificationEditor';
+import AdminVariantManager from '../../components/AdminVariantManager';
+
+const makeEmptySpec = () => ({
+  local_id: crypto.randomUUID(),
+  group_name: '',
+  spec_key: '',
+  spec_value: '',
+  display_order: 0,
+});
 
 const AddProduct = () => {
   const navigate = useNavigate();
@@ -15,9 +25,12 @@ const AddProduct = () => {
     image_url: '',
     brand: '',
     sku: '',
+    product_type: '',
     featured: false,
     status: 'active',
+    variants: [],
   });
+  const [specifications, setSpecifications] = useState([makeEmptySpec()]);
   const [imagePreview, setImagePreview] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [error, setError] = useState(null);
@@ -71,9 +84,21 @@ const AddProduct = () => {
         category_id: formData.category_id || null,
         sku: formData.sku || null,
         brand: formData.brand || null,
+        product_type: formData.product_type || null,
       };
 
-      await createProduct(productData);
+      const product = await createProduct(productData);
+      await productService.saveProductSpecifications(
+        product.id,
+        specifications
+          .filter((spec) => spec.spec_key)
+          .map((spec, index) => ({
+            group_name: spec.group_name || 'Thông số khác',
+            spec_key: spec.spec_key,
+            spec_value: spec.spec_value,
+            display_order: index,
+          }))
+      );
       navigate('/admin/products');
     } catch (err) {
       setError(err.message || 'Unable to create product');
@@ -141,6 +166,21 @@ const AddProduct = () => {
                   {category.name}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Product Type</label>
+            <select
+              name="product_type"
+              value={formData.product_type}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Custom</option>
+              <option value="phone">Phone</option>
+              <option value="laptop">Laptop</option>
+              <option value="audio">Audio</option>
             </select>
           </div>
 
@@ -216,6 +256,13 @@ const AddProduct = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+
+        <SpecificationEditor
+          productType={formData.product_type}
+          onProductTypeChange={(productType) => setFormData({ ...formData, product_type: productType })}
+          specifications={specifications}
+          onChange={setSpecifications}
+        />
 
         <div className="flex items-center justify-end gap-4">
           <button
