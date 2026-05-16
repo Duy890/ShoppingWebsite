@@ -1,15 +1,17 @@
 import api from './api';
 
 export const productService = {
-  async getProducts(filters = {}) {
+  async getProducts(filters = {}, signal) {
     const params = {};
 
     if (filters.category) params.category = filters.category;
     if (filters.search) params.search = filters.search;
     if (filters.featured !== undefined) params.featured = filters.featured;
     if (filters.sortBy) params.sortBy = filters.sortBy;
+    if (filters.type) params.product_type = filters.type;
+    if (filters.brand) params.brand = filters.brand;
 
-    const { data } = await api.get('/products', { params });
+    const { data } = await api.get('/products', { params, signal });
     return data;
   },
 
@@ -89,5 +91,47 @@ export const productService = {
     if (!productType) return [];
     const { data } = await api.get(`/spec-templates/${productType}`);
     return data;
+  },
+
+  _navCategoriesCache: null,
+  _navCategoriesPromise: null,
+
+  async getNavigationCategories() {
+    if (this._navCategoriesCache) return this._navCategoriesCache;
+    if (this._navCategoriesPromise) return this._navCategoriesPromise;
+
+    this._navCategoriesPromise = api.get('/navigation/categories')
+      .then(({ data }) => {
+        this._navCategoriesCache = data;
+        this._navCategoriesPromise = null;
+        return data;
+      })
+      .catch(err => {
+        this._navCategoriesPromise = null;
+        throw err;
+      });
+
+    return this._navCategoriesPromise;
+  },
+
+  _navTreeCache: null,
+  _navTreePromise: null,
+
+  async getNavigationTree() {
+    if (this._navTreeCache) return this._navTreeCache;
+    if (this._navTreePromise) return this._navTreePromise;
+
+    this._navTreePromise = api.get('/navigation/tree')
+      .then(({ data }) => {
+        this._navTreeCache = data;
+        this._navTreePromise = null;
+        return data;
+      })
+      .catch(err => {
+        this._navTreePromise = null;
+        throw err;
+      });
+
+    return this._navTreePromise;
   },
 };

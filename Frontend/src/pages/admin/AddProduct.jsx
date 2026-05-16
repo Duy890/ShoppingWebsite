@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProducts } from '../../hooks/useProducts';
 import { productService } from '../../services/productService';
 import SpecificationEditor from '../../components/SpecificationEditor';
+import AdminVariantManager from '../../components/AdminVariantManager';
 
 const makeEmptySpec = () => ({
   local_id: crypto.randomUUID(),
@@ -27,6 +28,7 @@ const AddProduct = () => {
     product_type: '',
     featured: false,
     status: 'active',
+    variants: [],
   });
   const [specifications, setSpecifications] = useState([makeEmptySpec()]);
   const [imagePreview, setImagePreview] = useState('');

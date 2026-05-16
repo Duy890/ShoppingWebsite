@@ -133,6 +133,7 @@ class ProductRead(ProductBase):
     updated_at: Optional[datetime] = None
     category: Optional[CategoryRead] = None
     reviews: List["ReviewRead"] = []
+    variants: List["ProductVariantRead"] = []
 
     model_config = {"from_attributes": True}
 
@@ -230,8 +231,53 @@ class SpecTemplateRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ProductVariantBase(BaseModel):
+    color_name: Optional[str] = None
+    color_code: Optional[str] = None
+    # color_code supports: HEX (#1C1C1E), rgba(), transparent, gradients
+    version_name: Optional[str] = None
+    ram: Optional[str] = None
+    storage: Optional[str] = None
+    sku: Optional[str] = None
+    price: float
+    compare_price: Optional[float] = None
+    stock: int = 0
+    image_url: Optional[str] = None
+    is_default: bool = False
+    status: str = "active"
+
+
+class ProductVariantCreate(ProductVariantBase):
+    pass
+
+
+class ProductVariantUpdate(BaseModel):
+    color_name: Optional[str] = None
+    color_code: Optional[str] = None
+    version_name: Optional[str] = None
+    ram: Optional[str] = None
+    storage: Optional[str] = None
+    sku: Optional[str] = None
+    price: Optional[float] = None
+    compare_price: Optional[float] = None
+    stock: Optional[int] = None
+    image_url: Optional[str] = None
+    is_default: Optional[bool] = None
+    status: Optional[str] = None
+
+
+class ProductVariantRead(ProductVariantBase):
+    id: str
+    product_id: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 class CartItemCreate(BaseModel):
     product_id: str
+    variant_id: Optional[str] = None
     quantity: int = Field(..., gt=0)
 
 
@@ -243,6 +289,7 @@ class CartItemRead(BaseModel):
     id: str
     quantity: int
     product: ProductRead
+    variant: Optional[ProductVariantRead] = None
 
     model_config = {"from_attributes": True}
 

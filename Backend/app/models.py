@@ -51,10 +51,16 @@ class Category(Base):
     __tablename__ = "categories"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    name = Column(String(255), unique=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    slug = Column(String(255), unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
+    parent_id = Column(String(36), ForeignKey("categories.id"), nullable=True, index=True)
+    level = Column(Integer, default=0)
+    path = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    parent = relationship("Category", remote_side="Category.id", back_populates="children")
+    children = relationship("Category", back_populates="parent", cascade="all, delete-orphan")
     products = relationship("Product", back_populates="category")
 
 
@@ -81,10 +87,64 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     category = relationship("Category", back_populates="products")
+    variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     cart_items = relationship("CartItem", back_populates="product", cascade="all, delete-orphan")
     order_items = relationship("OrderItem", back_populates="product", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
     specifications = relationship("ProductSpecification", back_populates="product", cascade="all, delete-orphan")
+    hotspots = relationship("ProductHotspot", back_populates="product", cascade="all, delete-orphan")
+    related = relationship("RelatedProduct", foreign_keys="RelatedProduct.product_id", back_populates="product", cascade="all, delete-orphan")
+
+
+class ProductVariant(Base):
+    __tablename__ = "product_variants"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False, index=True)
+    color_name = Column(String(255), nullable=True)
+    color_code = Column(String(50), nullable=True)
+    version_name = Column(String(255), nullable=True)
+    ram = Column(String(255), nullable=True)
+    storage = Column(String(255), nullable=True)
+    sku = Column(String(255), nullable=True)
+    price = Column(Float, nullable=False)
+    compare_price = Column(Float, nullable=True)
+    stock = Column(Integer, default=0)
+    image_url = Column(Text, nullable=True)
+    is_default = Column(Boolean, default=False)
+    status = Column(String(255), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    product = relationship("Product", back_populates="variants")
+    cart_items = relationship("CartItem", back_populates="variant")
+    order_items = relationship("OrderItem", back_populates="variant")
+
+
+class RelatedProduct(Base):
+    __tablename__ = "related_products"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False, index=True)
+    related_product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    product = relationship("Product", foreign_keys=[product_id], back_populates="related")
+
+
+class ProductHotspot(Base):
+    __tablename__ = "product_hotspots"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False, index=True)
+    label = Column(String(255), nullable=False)
+    type = Column(String(255), nullable=True)
+    x_percent = Column(Float, nullable=False)
+    y_percent = Column(Float, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    product = relationship("Product", back_populates="hotspots")
 
 
 class ProductSpecification(Base):
@@ -181,11 +241,13 @@ class CartItem(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     cart_id = Column(String(36), ForeignKey("carts.id"), nullable=False)
     product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
+    variant_id = Column(String(36), ForeignKey("product_variants.id"), nullable=True)
     quantity = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     cart = relationship("Cart", back_populates="items")
     product = relationship("Product", back_populates="cart_items")
+    variant = relationship("ProductVariant", back_populates="cart_items")
 
 
 class Order(Base):
@@ -219,12 +281,14 @@ class OrderItem(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     order_id = Column(String(36), ForeignKey("orders.id"), nullable=False)
     product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
+    variant_id = Column(String(36), ForeignKey("product_variants.id"), nullable=True)
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     order = relationship("Order", back_populates="items")
     product = relationship("Product", back_populates="order_items")
+    variant = relationship("ProductVariant", back_populates="order_items")
 
 
 class OrderStatusHistory(Base):

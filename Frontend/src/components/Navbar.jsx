@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { useCart } from '../hooks/useCart';
-import { useProducts } from '../hooks/useProducts';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout as logoutAction } from '../store/authSlice';
 import { productService } from '../services/productService';
+import { authService } from '../services/authService';
+import { useNavigation } from '../hooks/useNavigation';
+import { setFilters } from '../store/productSlice';
 import SearchSuggestions from './SearchSuggestions';
 import CategoryMegaMenu from './CategoryMegaMenu';
 import {
@@ -37,11 +39,16 @@ const translations = {
   },
 };
 
-const Navbar = () => {
+const Navbar = memo(() => {
   const navigate = useNavigate();
-  const { isAuthenticated, profile, logout } = useAuth();
-  const { cartCount } = useCart();
-  const { categories } = useProducts();
+  const dispatch = useDispatch();
+  const { navTree } = useNavigation();
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const profile = useSelector((state) => state.auth.profile);
+  const cartItems = useSelector((state) => state.cart.items);
+
+  const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'en');
@@ -50,11 +57,14 @@ const Navbar = () => {
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
-  const [categoryTree, setCategoryTree] = useState([]);
   const [isMegaOpen, setIsMegaOpen] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const suggestionsTimerRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  useEffect(() => {
+    console.count("Navbar render");
+  });
 
   useEffect(() => {
     localStorage.setItem('app_language', language);
@@ -67,10 +77,6 @@ const Navbar = () => {
   }, [darkMode]);
 
   useEffect(() => {
-    loadCategoryTree();
-  }, []);
-
-  useEffect(() => {
     const handleEsc = (event) => {
       if (event.key === 'Escape') {
         setIsSuggestionsOpen(false);
@@ -78,26 +84,15 @@ const Navbar = () => {
         setActiveSuggestion(-1);
       }
     };
-
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
   }, []);
 
-  const loadCategoryTree = async () => {
-    try {
-      const data = await productService.getCategoryTree();
-      setCategoryTree(data);
-    } catch (error) {
-      console.error('Unable to load category tree', error);
-    }
-  };
-
-  const fetchSuggestions = async (query) => {
+  const fetchSuggestions = useCallback(async (query) => {
     if (!query) {
       setSuggestions([]);
       return;
     }
-
     setLoadingSuggestions(true);
     try {
       const results = await productService.getSearchSuggestions(query);
@@ -110,91 +105,85 @@ const Navbar = () => {
     } finally {
       setLoadingSuggestions(false);
     }
-  };
+  }, []);
 
-  const updateSearchTerm = (value) => {
+  const updateSearchTerm = useCallback((value) => {
     setSearchTerm(value);
     clearTimeout(suggestionsTimerRef.current);
-
     if (!value.trim()) {
       setSuggestions([]);
       setIsSuggestionsOpen(false);
       return;
     }
-
     suggestionsTimerRef.current = setTimeout(() => {
       fetchSuggestions(value.trim());
     }, 180);
-  };
+  }, [fetchSuggestions]);
 
-  const handleSearch = (event) => {
+  const handleSearch = useCallback((event) => {
     event.preventDefault();
     const sanitized = searchTerm.trim();
     setIsSuggestionsOpen(false);
     setActiveSuggestion(-1);
-
     if (sanitized) {
       navigate(`/search?q=${encodeURIComponent(sanitized)}`);
       return;
     }
-
     navigate('/products');
-  };
+  }, [navigate, searchTerm]);
 
-  const handleCategoryClick = (categoryId) => {
+  const handleCategoryClick = useCallback((categorySlug) => {
     setIsMegaOpen(false);
     setIsSuggestionsOpen(false);
     setSearchTerm('');
-
-    if (categoryId) {
-      navigate(`/category/${categoryId}`);
+    if (categorySlug) {
+      navigate(`/products?category=${categorySlug}`);
       return;
     }
-
     navigate('/products');
-  };
+  }, [navigate]);
 
-  const handleSuggestionSelect = (item) => {
-    if (!item) {
-      return;
-    }
-
+  const handleSuggestionSelect = useCallback((item) => {
+    if (!item) return;
     setIsSuggestionsOpen(false);
     setSearchTerm('');
     setActiveSuggestion(-1);
-
     if (item.type === 'product') {
       navigate(`/product/${item.id}`);
       return;
     }
+    navigate(`/products?category=${item.id}`);
+  }, [navigate]);
 
-    navigate(`/category/${item.id}`);
-  };
-
-  const handleSearchKeyDown = (event) => {
-    if (!isSuggestionsOpen || suggestions.length === 0) {
-      return;
-    }
-
+  const handleSearchKeyDown = useCallback((event) => {
+    if (!isSuggestionsOpen || suggestions.length === 0) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setActiveSuggestion((current) => Math.min(current + 1, suggestions.length - 1));
     }
-
     if (event.key === 'ArrowUp') {
       event.preventDefault();
       setActiveSuggestion((current) => Math.max(current - 1, 0));
     }
-
     if (event.key === 'Enter' && activeSuggestion >= 0) {
       event.preventDefault();
       handleSuggestionSelect(suggestions[activeSuggestion]);
     }
-  };
+  }, [isSuggestionsOpen, suggestions, activeSuggestion, handleSuggestionSelect]);
+
+  const handleLogout = useCallback(async () => {
+    await authService.signOut();
+    dispatch(logoutAction());
+  }, [dispatch]);
+
+  const clearSuggestions = useCallback(() => {
+    setSuggestions([]);
+    setIsSuggestionsOpen(false);
+    setActiveSuggestion(-1);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 w-full">
-      {/* Top Utility Bar */}
       <div className="bg-gray-100 py-1 hidden sm:block">
         <div className="max-w-7xl mx-auto px-4 flex justify-end space-x-6 text-[10px] font-medium text-gray-500 uppercase tracking-wider">
           <Link to="#" className="hover:text-primary transition-colors">Order Tracking</Link>
@@ -203,7 +192,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Main Orange-Red Header */}
       <nav className="bg-primary text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between h-20 gap-4">
@@ -249,18 +237,12 @@ const Navbar = () => {
                   loading={loadingSuggestions}
                   isOpen={isSuggestionsOpen}
                   onSelect={handleSuggestionSelect}
-                  onClear={() => {
-                    setSuggestions([]);
-                    setIsSuggestionsOpen(false);
-                    setActiveSuggestion(-1);
-                  }}
+                  onClear={clearSuggestions}
                 />
               </div>
 
               <CategoryMegaMenu
-                categories={categoryTree.length ? categoryTree : categories}
                 isOpen={isMegaOpen}
-                onSelect={handleCategoryClick}
                 onDismiss={() => setIsMegaOpen(false)}
               />
             </div>
@@ -342,7 +324,7 @@ const Navbar = () => {
                       </div>
                       <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">Profile</Link>
                       <button 
-                        onClick={logout}
+                        onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
                       >
                         <LogOut className="w-4 h-4 mr-2" />
@@ -384,22 +366,25 @@ const Navbar = () => {
                 </button>
               </form>
               <div className="space-y-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Categories</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Links</p>
                 <button 
                   onClick={() => handleCategoryClick(null)}
                   className="block w-full text-left px-2 py-2 text-sm font-semibold hover:text-primary"
                 >
                   All Products
                 </button>
-                {categories.map((cat) => (
-                  <button 
-                    key={cat.id}
-                    onClick={() => handleCategoryClick(cat.id)}
-                    className="block w-full text-left px-2 py-2 text-sm font-semibold hover:text-primary"
-                  >
-                    {cat.name}
-                  </button>
-                ))}
+                <Link 
+                  to="/products?type=phone"
+                  className="block w-full text-left px-2 py-2 text-sm font-semibold hover:text-primary"
+                >
+                  Điện thoại
+                </Link>
+                <Link 
+                  to="/products?type=laptop"
+                  className="block w-full text-left px-2 py-2 text-sm font-semibold hover:text-primary"
+                >
+                  Laptop
+                </Link>
               </div>
             </div>
           </div>
@@ -407,6 +392,8 @@ const Navbar = () => {
       </nav>
     </header>
   );
-};
+});
+
+Navbar.displayName = 'Navbar';
 
 export default Navbar;

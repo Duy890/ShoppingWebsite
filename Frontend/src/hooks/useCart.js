@@ -33,14 +33,14 @@ export const useCart = () => {
     }
   };
 
-  const addToCart = async (productId, quantity = 1) => {
+  const addToCart = async (productId, quantity = 1, variantId = null) => {
     if (!user) {
       throw new Error('Please sign in to add items to cart');
     }
 
     try {
       dispatch(setLoading(true));
-      await cartService.addToCart(user.id, productId, quantity);
+      await cartService.addToCart(user.id, productId, quantity, variantId);
       await loadCart();
     } catch (err) {
       dispatch(setError(err.message));

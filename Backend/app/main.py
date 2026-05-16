@@ -20,6 +20,7 @@ from .middleware.error_handlers import (
 )
 from .routes.system import router as system_router
 from .routes.locations import router as locations_router
+from .routes.navigation import router as navigation_router
 
 app = FastAPI(title="e-shop. Backend API")
 
@@ -44,6 +45,7 @@ app.add_exception_handler(Exception, general_exception_handler)
 app.include_router(router)
 app.include_router(system_router)
 app.include_router(locations_router)
+app.include_router(navigation_router)
 
 
 def add_column_if_missing(table_name: str, column_name: str, definition: str) -> None:
@@ -299,5 +301,3 @@ def startup_event():
         create_gaming_benchmark_data(db)
     finally:
         db.close()
-
-app.include_router(router)

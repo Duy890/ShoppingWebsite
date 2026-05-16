@@ -183,8 +183,8 @@ def delete_category(category_id: str, current_user: models.User = Depends(get_cu
 
 
 @router.get("/products", response_model=list[schemas.ProductRead])
-def read_products(category: str | None = None, search: str | None = None, featured: bool | None = None, sortBy: str | None = None, db: Session = Depends(get_db)):
-    return services.get_products(db, category, search, featured, sortBy)
+def read_products(category: str | None = None, search: str | None = None, featured: bool | None = None, sortBy: str | None = None, product_type: str | None = None, brand: str | None = None, db: Session = Depends(get_db)):
+    return services.get_products(db, category, search, featured, sortBy, product_type, brand)
 
 
 @router.get("/products/{product_id}", response_model=schemas.ProductRead)
@@ -283,6 +283,41 @@ def remove_product(product_id: str, current_user: models.User = Depends(get_curr
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
+@router.get("/products/{product_id}/variants", response_model=list[schemas.ProductVariantRead])
+def get_product_variants(product_id: str, db: Session = Depends(get_db)):
+    try:
+        return services.get_product_variants(db, product_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.post("/admin/products/{product_id}/variants", response_model=schemas.ProductVariantRead)
+def create_product_variant(product_id: str, payload: schemas.ProductVariantCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_admin(current_user)
+    try:
+        return services.create_product_variant(db, product_id, payload.dict())
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.put("/admin/variants/{variant_id}", response_model=schemas.ProductVariantRead)
+def update_product_variant(variant_id: str, payload: schemas.ProductVariantUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_admin(current_user)
+    try:
+        return services.update_product_variant(db, variant_id, payload.dict(exclude_none=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.delete("/admin/variants/{variant_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_product_variant(variant_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_admin(current_user)
+    try:
+        services.delete_product_variant(db, variant_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
 @router.get("/cart", response_model=schemas.CartRead)
 def read_cart(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     cart = services.get_or_create_cart(db, current_user.id)
@@ -294,7 +329,7 @@ def read_cart(current_user: models.User = Depends(get_current_user), db: Session
 @router.post("/cart/items", response_model=schemas.CartItemRead)
 def add_cart_item(payload: schemas.CartItemCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
-        return services.add_to_cart(db, current_user.id, payload.product_id, payload.quantity)
+        return services.add_to_cart(db, current_user.id, payload.product_id, payload.quantity, payload.variant_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 

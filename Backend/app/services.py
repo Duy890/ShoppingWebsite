@@ -98,8 +98,8 @@ def delete_category(db: Session, category_id: str):
     repositories.delete_category(db, category)
 
 
-def get_products(db: Session, category_id: Optional[str] = None, search: Optional[str] = None, featured: Optional[bool] = None, sort_by: Optional[str] = None):
-    return repositories.get_products(db, category_id, search, featured, sort_by)
+def get_products(db: Session, category_id: Optional[str] = None, search: Optional[str] = None, featured: Optional[bool] = None, sort_by: Optional[str] = None, product_type: Optional[str] = None, brand: Optional[str] = None):
+    return repositories.get_products(db, category_id, search, featured, sort_by, product_type, brand)
 
 
 def get_product(db: Session, product_id: str):
@@ -212,12 +212,18 @@ def get_cart_items(db: Session, user_id: str):
     return repositories.get_cart_items(db, user_id)
 
 
-def add_to_cart(db: Session, user_id: str, product_id: str, quantity: int):
+def add_to_cart(db: Session, user_id: str, product_id: str, quantity: int, variant_id: Optional[str] = None):
     cart = repositories.get_or_create_cart(db, user_id)
     product = repositories.get_product(db, product_id)
     if not product:
         raise ValueError("Product not found")
-    return repositories.add_cart_item(db, cart.id, product_id, quantity)
+
+    if variant_id:
+        variant = db.query(models.ProductVariant).filter(models.ProductVariant.id == variant_id).first()
+        if not variant:
+            raise ValueError("Variant not found")
+
+    return repositories.add_cart_item(db, cart.id, product_id, quantity, variant_id)
 
 
 def update_cart_item(db: Session, item_id: str, quantity: int):
@@ -375,3 +381,46 @@ def get_admin_stats(db: Session):
         "total_revenue": repositories.get_total_revenue(db),
         "total_users": repositories.get_user_count(db),
     }
+
+
+# Product Variant Services
+def get_product_variants(db: Session, product_id: str) -> list[models.ProductVariant]:
+    product = repositories.get_product(db, product_id)
+    if not product:
+        raise ValueError("Product not found")
+    return db.query(models.ProductVariant).filter(models.ProductVariant.product_id == product_id).order_by(models.ProductVariant.created_at).all()
+
+
+def create_product_variant(db: Session, product_id: str, variant_data: dict) -> models.ProductVariant:
+    product = repositories.get_product(db, product_id)
+    if not product:
+        raise ValueError("Product not found")
+
+    variant = models.ProductVariant(product_id=product_id, **variant_data)
+    db.add(variant)
+    db.commit()
+    db.refresh(variant)
+    return variant
+
+
+def update_product_variant(db: Session, variant_id: str, variant_data: dict) -> models.ProductVariant:
+    variant = db.query(models.ProductVariant).filter(models.ProductVariant.id == variant_id).first()
+    if not variant:
+        raise ValueError("Variant not found")
+
+    for key, value in variant_data.items():
+        setattr(variant, key, value)
+
+    db.commit()
+    db.refresh(variant)
+    return variant
+
+
+def delete_product_variant(db: Session, variant_id: str):
+    variant = db.query(models.ProductVariant).filter(models.ProductVariant.id == variant_id).first()
+    if not variant:
+        raise ValueError("Variant not found")
+
+    db.delete(variant)
+    db.commit()
+

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  ShoppingCart, 
-  ArrowLeft, 
-  Star, 
-  ShieldCheck, 
-  Truck, 
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ShoppingCart,
+  ArrowLeft,
+  Star,
+  ShieldCheck,
+  Truck,
   RefreshCcw,
   Plus,
   Minus
@@ -16,10 +16,12 @@ import { useAuth } from '../hooks/useAuth';
 import { productService } from '../services/productService';
 import StarRating from '../components/StarRating';
 import ProductSpecifications from '../components/ProductSpecifications';
+import VariantSelector from '../components/VariantSelector';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { addToCart } = useCart();
   const { isAuthenticated, user } = useAuth();
   const [product, setProduct] = useState(null);
@@ -30,6 +32,8 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const [displayPrice, setDisplayPrice] = useState(null);
 
   useEffect(() => {
     loadProduct();
@@ -46,9 +50,39 @@ const ProductDetail = () => {
         return;
       }
       setProduct(data);
+      setDisplayPrice(data.price);
+
+      if (data.variants && data.variants.length > 0) {
+        const colorParam = searchParams.get('color');
+        const versionParam = searchParams.get('version');
+        let variant = null;
+
+        if (colorParam || versionParam) {
+          variant = data.variants.find(v => {
+            const matchColor = !colorParam || v.color_code === colorParam;
+            const versionStr = `${v.ram}|${v.storage}`;
+            const matchVersion = !versionParam || v.version_name === versionParam || versionStr === versionParam;
+            return matchColor && matchVersion;
+          });
+        }
+
+        variant = variant || data.variants.find(v => v.is_default) || data.variants[0];
+        setSelectedVariant(variant);
+        setDisplayPrice(variant.price || data.price);
+
+        const newParams = new URLSearchParams();
+        if (variant.color_code) {
+          newParams.set('color', variant.color_code);
+        }
+        if (variant.version_name) {
+          newParams.set('version', variant.version_name);
+        } else if (variant.ram || variant.storage) {
+          newParams.set('version', `${variant.ram}|${variant.storage}`);
+        }
+        setSearchParams(newParams);
+      }
     } catch (error) {
       console.error('Error loading product:', error);
-      // Navigate to 404 if product not found (API interceptor handles this too)
       if (error.response?.status === 404) {
         navigate('/404', { replace: true });
       }
@@ -104,12 +138,28 @@ const ProductDetail = () => {
       return;
     }
     try {
-      await addToCart(product.id, quantity);
-      // Redirect to cart for the "Happy Path" prototype experience
+      await addToCart(product.id, quantity, selectedVariant?.id);
       navigate('/cart');
     } catch (error) {
       alert(error.message);
     }
+  };
+
+  const handleVariantChange = (variant) => {
+    setSelectedVariant(variant);
+    setDisplayPrice(variant.price || product.price);
+    setQuantity(1);
+
+    const newParams = new URLSearchParams();
+    if (variant.color_code) {
+      newParams.set('color', variant.color_code);
+    }
+    if (variant.version_name) {
+      newParams.set('version', variant.version_name);
+    } else if (variant.ram || variant.storage) {
+      newParams.set('version', `${variant.ram}|${variant.storage}`);
+    }
+    setSearchParams(newParams);
   };
 
   if (loading) {
@@ -204,13 +254,22 @@ const ProductDetail = () => {
               </div>
 
               <div className="text-5xl font-black text-primary tracking-tighter">
-                {formatPrice(product.price)}
+                {formatPrice(displayPrice || product.price)}
               </div>
 
               <p className="text-gray-500 leading-relaxed text-lg">
                 {product.description}
               </p>
             </div>
+
+            {/* Variant Selection */}
+            {product.variants && product.variants.length > 0 && (
+              <VariantSelector
+                variants={product.variants}
+                currentVariant={selectedVariant}
+                onVariantChange={handleVariantChange}
+              />
+            )}
 
             {/* Selection & Actions */}
             <div className="py-8 space-y-8">

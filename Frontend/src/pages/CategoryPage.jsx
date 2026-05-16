@@ -1,23 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { setFilters } from '../store/productSlice';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
 import { productService } from '../services/productService';
 
 const CategoryPage = () => {
   const { categoryId } = useParams();
+  const dispatch = useDispatch();
   const { categories } = useProducts();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const category = categories.find((item) => item.id === categoryId);
+  const category = categories.find((item) => item.id === categoryId || item.slug === categoryId);
+
+  useEffect(() => {
+    if (categoryId) {
+      dispatch(setFilters({ category: categoryId }));
+    }
+  }, [categoryId, dispatch]);
 
   useEffect(() => {
     const loadCategoryProducts = async () => {
       setLoading(true);
       setError(null);
-
       try {
         const data = await productService.getProducts({ category: categoryId });
         setProducts(data);
@@ -27,7 +35,6 @@ const CategoryPage = () => {
         setLoading(false);
       }
     };
-
     if (categoryId) {
       loadCategoryProducts();
     }

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useProducts } from '../../hooks/useProducts';
 import { productService } from '../../services/productService';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import AdminVariantManager from '../../components/AdminVariantManager';
 
 const EditProduct = () => {
   const { id } = useParams();
@@ -544,105 +545,11 @@ const EditProduct = () => {
 
         {/* Variants Tab */}
         {activeTab === 'variants' && (
-          <div className="bg-white rounded-lg shadow p-8 space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-gray-900">Product Variants</h3>
-              <button
-                type="button"
-                onClick={addVariant}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700"
-              >
-                Add Variant
-              </button>
-            </div>
-
-            {formData.variants.length === 0 ? (
-              <p className="text-gray-500 text-center py-6">No variants yet. Add one to get started.</p>
-            ) : (
-              formData.variants.map((variant, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium text-gray-900">Variant {index + 1}</h4>
-                    <button
-                      type="button"
-                      onClick={() => removeVariant(index)}
-                      className="text-red-600 hover:text-red-700 text-sm"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                      <input
-                        type="text"
-                        value={variant.name}
-                        onChange={(e) => updateVariant(index, 'name', e.target.value)}
-                        required
-                        placeholder="e.g., Blue 256GB"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-                      <input
-                        type="text"
-                        value={variant.sku}
-                        onChange={(e) => updateVariant(index, 'sku', e.target.value)}
-                        placeholder="SKU"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
-                      <input
-                        type="number"
-                        value={variant.price}
-                        onChange={(e) => updateVariant(index, 'price', e.target.value)}
-                        required
-                        step="1000"
-                        min="0"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sale Price</label>
-                      <input
-                        type="number"
-                        value={variant.sale_price}
-                        onChange={(e) => updateVariant(index, 'sale_price', e.target.value)}
-                        step="1000"
-                        min="0"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Stock *</label>
-                      <input
-                        type="number"
-                        value={variant.stock}
-                        onChange={(e) => updateVariant(index, 'stock', e.target.value)}
-                        required
-                        min="0"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="flex items-center mt-7">
-                        <input
-                          type="checkbox"
-                          checked={variant.is_default}
-                          onChange={(e) => updateVariant(index, 'is_default', e.target.checked)}
-                          className="h-4 w-4 border border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm font-medium text-gray-700">Default Variant</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <AdminVariantManager
+            variants={formData.variants}
+            onVariantsChange={(variants) => setFormData({ ...formData, variants })}
+            productType={formData.product_type}
+          />
         )}
 
         {/* Specifications Tab */}

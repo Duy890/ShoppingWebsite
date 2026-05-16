@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy import func, or_
@@ -131,6 +132,20 @@ def get_categories_tree(db: Session) -> list[dict]:
     ]
 
 
+TYPE_MAPPING = {
+    "phone": "Điện thoại",
+    "laptop": "Laptop",
+    "tablet": "Máy tính bảng",
+    "watch": "Đồng hồ thông minh",
+    "audio": "Tai nghe",
+    "keyboard": "Bàn phím",
+    "mouse": "Chuột",
+    "monitor": "Màn hình",
+    "pc": "PC",
+    "accessory": "Phụ kiện"
+}
+
+
 def get_search_suggestions(db: Session, query: str, limit: int = 8) -> list[dict]:
     if not query:
         return []
@@ -138,7 +153,6 @@ def get_search_suggestions(db: Session, query: str, limit: int = 8) -> list[dict
     search_value = f"%{query}%"
     product_matches = (
         db.query(models.Product)
-        .join(models.Category, isouter=True)
         .filter(
             (models.Product.name.ilike(search_value)) |
             (models.Product.brand.ilike(search_value)) |
@@ -157,17 +171,19 @@ def get_search_suggestions(db: Session, query: str, limit: int = 8) -> list[dict
         .all()
     )
 
-    suggestions = [
-        {
+    suggestions = []
+    for product in product_matches:
+        display_type = TYPE_MAPPING.get(product.product_type, product.product_type.capitalize() if product.product_type else "Sản phẩm")
+        hierarchy = f"{display_type} > {product.brand}" if product.brand else display_type
+        
+        suggestions.append({
             "id": product.id,
             "type": "product",
             "label": product.name,
-            "subtitle": product.brand or product.sku or "",
-            "category": product.category.name if product.category else None,
+            "subtitle": hierarchy,
+            "category": display_type,
             "image_url": product.image_url,
-        }
-        for product in product_matches
-    ]
+        })
 
     suggestions.extend([
         {
@@ -201,15 +217,56 @@ def delete_category(db: Session, category: models.Category) -> None:
     db.commit()
 
 
-def get_products(db: Session, category_id: str | None = None, search: str | None = None, featured: bool | None = None, sort_by: str | None = None) -> list[models.Product]:
+def _get_all_category_ids(db: Session, category_id: str) -> list[str]:
+    """Get a category and all its descendant category IDs recursively."""
+    ids = [category_id]
+    
+    # Get direct children
+    children = db.query(models.Category).filter(models.Category.parent_id == category_id).all()
+    for child in children:
+        ids.extend(_get_all_category_ids(db, child.id))
+    
+    return ids
+
+
+def get_products(db: Session, category_id: str | None = None, search: str | None = None, featured: bool | None = None, sort_by: str | None = None, product_type: str | None = None, brand: str | None = None) -> list[models.Product]:
+    print(f"[DEBUG] get_products called with: category={category_id}, type={product_type}, brand={brand}")
+    
     query = db.query(models.Product).options(joinedload(models.Product.category))
 
     if category_id:
-        query = query.filter(models.Product.category_id == category_id)
+        is_uuid = False
+        try:
+            uuid.UUID(category_id)
+            is_uuid = True
+        except ValueError:
+            pass
+
+        if is_uuid:
+            print(f"[DEBUG] Filtering by category ID: {category_id}")
+            query = query.filter(models.Product.category_id == category_id)
+        else:
+            print(f"[DEBUG] Filtering by category slug: {category_id}")
+            category = db.query(models.Category).filter(models.Category.slug == category_id).first()
+            
+            if category:
+                print(f"[DEBUG] Found category: {category.name} (id={category.id})")
+                all_category_ids = _get_all_category_ids(db, category.id)
+                print(f"[DEBUG] All category IDs (including children): {all_category_ids}")
+                print(f"[DEBUG] Product IDs in those categories: {db.query(models.Product.category_id).filter(models.Product.category_id.in_(all_category_ids)).all()}")
+                query = query.join(models.Category).filter(models.Category.id.in_(all_category_ids))
+            else:
+                print(f"[DEBUG] Category slug '{category_id}' not found in database!")
+                query = query.filter(models.Product.id == None)
+
     if search:
         query = query.filter(models.Product.name.ilike(f"%{search}%"))
     if featured is not None:
         query = query.filter(models.Product.featured == featured)
+    if product_type:
+        query = query.filter(models.Product.product_type == product_type)
+    if brand:
+        query = query.filter(models.Product.brand.ilike(brand))
 
     if sort_by:
         if sort_by == "price":
@@ -400,20 +457,24 @@ def get_cart_item_by_id(db: Session, item_id: str) -> models.CartItem | None:
     return db.query(models.CartItem).options(joinedload(models.CartItem.product)).filter(models.CartItem.id == item_id).first()
 
 
-def get_cart_item_by_product(db: Session, cart_id: str, product_id: str) -> models.CartItem | None:
-    return (
-        db.query(models.CartItem)
-        .filter(models.CartItem.cart_id == cart_id, models.CartItem.product_id == product_id)
-        .first()
+def get_cart_item_by_product(db: Session, cart_id: str, product_id: str, variant_id: str | None = None) -> models.CartItem | None:
+    query = db.query(models.CartItem).filter(
+        models.CartItem.cart_id == cart_id,
+        models.CartItem.product_id == product_id
     )
+    if variant_id:
+        query = query.filter(models.CartItem.variant_id == variant_id)
+    else:
+        query = query.filter(models.CartItem.variant_id.is_(None))
+    return query.first()
 
 
-def add_cart_item(db: Session, cart_id: str, product_id: str, quantity: int) -> models.CartItem:
-    cart_item = get_cart_item_by_product(db, cart_id, product_id)
+def add_cart_item(db: Session, cart_id: str, product_id: str, quantity: int, variant_id: str | None = None) -> models.CartItem:
+    cart_item = get_cart_item_by_product(db, cart_id, product_id, variant_id)
     if cart_item:
         cart_item.quantity += quantity
     else:
-        cart_item = models.CartItem(cart_id=cart_id, product_id=product_id, quantity=quantity)
+        cart_item = models.CartItem(cart_id=cart_id, product_id=product_id, quantity=quantity, variant_id=variant_id)
         db.add(cart_item)
     db.commit()
     db.refresh(cart_item)

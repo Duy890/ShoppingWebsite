@@ -2,8 +2,16 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
 // Create axios instance
+const getBaseURL = () => {
+  const url = import.meta.env.VITE_API_URL;
+  if (!url || url === 'undefined' || url === 'null') {
+    return 'http://localhost:8000';
+  }
+  return url;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: getBaseURL(),
   timeout: 10000,
 });
 
