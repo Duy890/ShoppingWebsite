@@ -1,7 +1,7 @@
 import api from './api';
 
 export const productService = {
-  async getProducts(filters = {}, signal) {
+  async getProducts(filters = {}) {
     const params = {};
 
     if (filters.category) params.category = filters.category;
@@ -10,8 +10,15 @@ export const productService = {
     if (filters.sortBy) params.sortBy = filters.sortBy;
     if (filters.type) params.product_type = filters.type;
     if (filters.brand) params.brand = filters.brand;
+    if (filters.page) params.page = filters.page;
+    if (filters.limit) params.limit = filters.limit;
 
-    const { data } = await api.get('/products', { params, signal });
+    console.log('[productService] GET /products with params:', params);
+
+    const { data } = await api.get('/products', { params });
+
+    console.log('[productService] Response:', data.items?.length || 0, 'products, total:', data.pagination?.total_items);
+
     return data;
   },
 

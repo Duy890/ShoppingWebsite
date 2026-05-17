@@ -53,8 +53,8 @@ const Home = () => {
 
   const loadFeaturedProducts = async () => {
     try {
-      const products = await productService.getProducts({ featured: true });
-      setFeaturedProducts(products.slice(0, 8)); // 4x2 grid
+      const response = await productService.getProducts({ featured: true, limit: 8 });
+      setFeaturedProducts(response.items || []);
     } catch (error) {
       console.error('Error loading featured products:', error);
     } finally {

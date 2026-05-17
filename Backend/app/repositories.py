@@ -229,8 +229,8 @@ def _get_all_category_ids(db: Session, category_id: str) -> list[str]:
     return ids
 
 
-def get_products(db: Session, category_id: str | None = None, search: str | None = None, featured: bool | None = None, sort_by: str | None = None, product_type: str | None = None, brand: str | None = None) -> list[models.Product]:
-    print(f"[DEBUG] get_products called with: category={category_id}, type={product_type}, brand={brand}")
+def get_products(db: Session, category_id: str | None = None, search: str | None = None, featured: bool | None = None, sort_by: str | None = None, product_type: str | None = None, brand: str | None = None, page: int = 1, limit: int = 20) -> tuple[list[models.Product], int]:
+    print(f"[DEBUG] get_products called with: category={category_id}, type={product_type}, brand={brand}, page={page}, limit={limit}")
     
     query = db.query(models.Product).options(joinedload(models.Product.category))
 
@@ -276,7 +276,12 @@ def get_products(db: Session, category_id: str | None = None, search: str | None
     else:
         query = query.order_by(models.Product.created_at.desc())
 
-    return query.all()
+    total = query.count()
+
+    offset = (page - 1) * limit
+    items = query.offset(offset).limit(limit).all()
+
+    return items, total
 
 
 def get_product(db: Session, product_id: str) -> models.Product | None:
@@ -500,13 +505,28 @@ def clear_cart(db: Session, user_id: str) -> None:
     db.commit()
 
 
-def create_order(db: Session, user_id: str, total_amount: float, shipping_address: str | None, payment_method: str | None, address_id: str | None = None) -> models.Order:
+def create_order(
+    db: Session,
+    user_id: str,
+    total_amount: float,
+    shipping_address: str | None,
+    payment_method: str | None,
+    address_id: str | None = None,
+    shipping_method: str | None = None,
+    shipping_fee: float = 0,
+    order_note: str | None = None,
+    estimated_delivery_days: int | None = None,
+) -> models.Order:
     order = models.Order(
         user_id=user_id,
         total_amount=total_amount,
         shipping_address=shipping_address,
         payment_method=payment_method,
         address_id=address_id,
+        shipping_method=shipping_method,
+        shipping_fee=shipping_fee,
+        order_note=order_note,
+        estimated_delivery_days=estimated_delivery_days,
         status="pending",
     )
     db.add(order)

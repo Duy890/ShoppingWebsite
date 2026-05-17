@@ -5,7 +5,7 @@ import { orderService } from '../services/orderService';
 import { authService } from '../services/authService';
 import { addressService } from '../services/addressService';
 import { formatPrice } from '../utils/formatPrice';
-import { ORDER_STATUS_LABELS } from '../utils/constants';
+import { ORDER_STATUS_LABELS, SHIPPING_METHOD_LABELS } from '../utils/constants';
 import { Package, MapPin, User } from 'lucide-react';
 import AvatarUploader from '../components/AvatarUploader';
 import ProfileDropdown from '../components/ProfileDropdown';
@@ -327,7 +327,7 @@ const Profile = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-xl font-black text-gray-900">
-                            {formatPrice(order.total_amount)}
+                            {formatPrice(Number(order.total_amount || 0))}
                           </p>
                           <span
                             className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${
@@ -340,6 +340,11 @@ const Profile = () => {
                           >
                             {ORDER_STATUS_LABELS[order.status]}
                           </span>
+                          {order.shipping_method && (
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {SHIPPING_METHOD_LABELS[order.shipping_method] || order.shipping_method}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -352,7 +357,7 @@ const Profile = () => {
                             <span className="text-gray-700">
                               <span className="font-semibold text-gray-900">{item.quantity}x</span> {item.product?.name}
                             </span>
-                            <span className="font-medium text-gray-600">{formatPrice(item.price * item.quantity)}</span>
+                            <span className="font-medium text-gray-600">{formatPrice(Number(item.price || 0) * Number(item.quantity || 0))}</span>
                           </div>
                         ))}
                       </div>

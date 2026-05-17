@@ -1,7 +1,7 @@
 import api from './api';
 
 export const orderService = {
-  async createOrder(userId, orderData) {
+  async createOrder(orderData) {
     const { data } = await api.post('/orders', orderData);
     return data;
   },

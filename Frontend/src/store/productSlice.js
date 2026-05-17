@@ -6,6 +6,14 @@ const initialState = {
   selectedProduct: null,
   loading: false,
   error: null,
+  pagination: {
+    page: 1,
+    limit: 12,
+    total_items: 0,
+    total_pages: 0,
+    has_next: false,
+    has_prev: false,
+  },
   filters: {
     category: null,
     search: '',
@@ -20,7 +28,12 @@ const productSlice = createSlice({
   initialState,
   reducers: {
     setProducts: (state, action) => {
-      state.products = action.payload;
+      if (action.payload?.items) {
+        state.products = action.payload.items;
+        state.pagination = action.payload.pagination || state.pagination;
+      } else {
+        state.products = action.payload;
+      }
     },
     setCategories: (state, action) => {
       state.categories = action.payload;
@@ -37,6 +50,9 @@ const productSlice = createSlice({
     setFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
     },
+    setPagination: (state, action) => {
+      state.pagination = { ...state.pagination, ...action.payload };
+    },
     clearFilters: (state) => {
       state.filters = {
         category: null,
@@ -45,6 +61,7 @@ const productSlice = createSlice({
         type: null,
         brand: null,
       };
+      state.pagination.page = 1;
     },
   },
 });
@@ -56,6 +73,7 @@ export const {
   setLoading,
   setError,
   setFilters,
+  setPagination,
   clearFilters,
 } = productSlice.actions;
 

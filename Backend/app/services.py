@@ -98,8 +98,20 @@ def delete_category(db: Session, category_id: str):
     repositories.delete_category(db, category)
 
 
-def get_products(db: Session, category_id: Optional[str] = None, search: Optional[str] = None, featured: Optional[bool] = None, sort_by: Optional[str] = None, product_type: Optional[str] = None, brand: Optional[str] = None):
-    return repositories.get_products(db, category_id, search, featured, sort_by, product_type, brand)
+def get_products(db: Session, category_id: Optional[str] = None, search: Optional[str] = None, featured: Optional[bool] = None, sort_by: Optional[str] = None, product_type: Optional[str] = None, brand: Optional[str] = None, page: int = 1, limit: int = 20):
+    items, total = repositories.get_products(db, category_id, search, featured, sort_by, product_type, brand, page, limit)
+    total_pages = (total + limit - 1) // limit if limit > 0 else 0
+    return {
+        "items": items,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total_items": total,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1,
+        },
+    }
 
 
 def get_product(db: Session, product_id: str):
@@ -244,7 +256,17 @@ def clear_cart(db: Session, user_id: str):
     repositories.clear_cart(db, user_id)
 
 
-def create_order(db: Session, user_id: str, items: list[dict], shipping_address: Optional[str] = None, payment_method: Optional[str] = None, address_id: Optional[str] = None):
+def create_order(
+    db: Session,
+    user_id: str,
+    items: list[dict],
+    shipping_address: Optional[str] = None,
+    payment_method: Optional[str] = None,
+    address_id: Optional[str] = None,
+    shipping_method: Optional[str] = None,
+    shipping_fee: float = 0,
+    order_note: Optional[str] = None,
+):
     if not items:
         raise ValueError("Order must contain at least one item")
 
@@ -255,6 +277,17 @@ def create_order(db: Session, user_id: str, items: list[dict], shipping_address:
             raise ValueError("Invalid address selected")
         if not shipping_address:
             shipping_address = f"{address_record.full_name}, {address_record.street}, {address_record.district or ''}, {address_record.city}, {address_record.country}".replace(' ,', ',').strip(', ')
+
+    estimated_delivery_days = None
+    if shipping_method:
+        shipping_config = {
+            "standard": {"days": 3, "fee": 15000},
+            "express": {"days": 1, "fee": 35000},
+            "same_day": {"days": 0, "fee": 75000},
+        }
+        config = shipping_config.get(shipping_method)
+        if config:
+            estimated_delivery_days = config["days"]
 
     total_amount = 0.0
     order_items = []
@@ -274,7 +307,20 @@ def create_order(db: Session, user_id: str, items: list[dict], shipping_address:
             "price": product.price,
         })
 
-    order = repositories.create_order(db, user_id, total_amount, shipping_address, payment_method, address_id)
+    total_amount += shipping_fee
+
+    order = repositories.create_order(
+        db,
+        user_id,
+        total_amount,
+        shipping_address,
+        payment_method,
+        address_id,
+        shipping_method,
+        shipping_fee,
+        order_note,
+        estimated_delivery_days,
+    )
 
     for order_item in order_items:
         repositories.create_order_item(db, order.id, **order_item)

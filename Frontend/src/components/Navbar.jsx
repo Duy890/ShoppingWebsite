@@ -64,7 +64,7 @@ const Navbar = memo(() => {
 
   useEffect(() => {
     console.count("Navbar render");
-  });
+  },[]);
 
   useEffect(() => {
     localStorage.setItem('app_language', language);
@@ -336,7 +336,7 @@ const Navbar = memo(() => {
               ) : (
                 <div className="flex items-center space-x-2">
                   <Link to="/login" className="text-xs font-bold uppercase tracking-widest px-4 py-2 hover:bg-white/10 rounded transition-colors">Login</Link>
-                  <Link to="/register" className="bg-white text-primary px-4 py-2 rounded font-bold text-xs uppercase tracking-widest hover:bg-gray-100 transition-colors shadow-lg">Sign Up</Link>
+                  <Link to="/signup" className="bg-white text-primary px-4 py-2 rounded font-bold text-xs uppercase tracking-widest hover:bg-gray-100 transition-colors shadow-lg">Sign Up</Link>
                 </div>
               )}
 

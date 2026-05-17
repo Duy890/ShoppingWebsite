@@ -313,6 +313,9 @@ class OrderCreate(BaseModel):
     address_id: Optional[str] = None
     shipping_address: Optional[str] = None
     payment_method: Optional[str] = None
+    shipping_method: Optional[str] = None
+    shipping_fee: float = 0
+    order_note: Optional[str] = None
 
 
 class OrderItemRead(BaseModel):
@@ -337,6 +340,10 @@ class OrderRead(BaseModel):
     delivered_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
     cancel_reason: Optional[str] = None
+    order_note: Optional[str] = None
+    shipping_method: Optional[str] = None
+    shipping_fee: float = 0
+    estimated_delivery_days: Optional[int] = None
     items: List[OrderItemRead] = []
     created_at: datetime
     updated_at: datetime
@@ -369,6 +376,10 @@ class OrderTracking(BaseModel):
     delivered_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
     cancel_reason: Optional[str] = None
+    shipping_method: Optional[str] = None
+    shipping_fee: float = 0
+    estimated_delivery_days: Optional[int] = None
+    order_note: Optional[str] = None
 
 
 class OrderTimeline(BaseModel):

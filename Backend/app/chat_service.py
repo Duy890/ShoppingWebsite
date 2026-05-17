@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from .chatbot.comparison_engine import compare_products
 from .chatbot.gaming_engine import evaluate_gaming_capability
 from .chatbot.intent_engine import detect_intent
-from .chatbot.openai_formatter import openai_formatter
+from .chatbot.openrouter_formatter import openrouter_formatter
 from .chatbot.recommendation_engine import recommend_products
 from .chatbot.search_engine import search_products
 
@@ -59,19 +59,24 @@ def process_chat_request(payload: schemas.ChatRequest, db: Session | None = None
     elif intent == "order_help":
         actions.append({"type": "navigate", "label": "View orders", "target": "/profile"})
 
-    # AI formatting layer
-    data_for_ai = {
-        "products": products,
-        "recommendations": recommendations,
-        "comparison": comparison,
-        "gaming_result": gaming_result,
-    }
+    # AI formatting layer — pass the right data shape per intent
+    if intent == "gaming_capability":
+        data_for_ai = gaming_result          # dict with game, products, alternatives, explanation
+    elif intent == "compare_products":
+        data_for_ai = comparison             # dict with products, fields, note
+    elif intent == "recommend_product":
+        data_for_ai = recommendations        # list of product cards
+    elif intent == "search_product":
+        data_for_ai = products               # list of product cards
+    else:
+        data_for_ai = {}
 
-    final_message = openai_formatter.format_response(
+    final_message = openrouter_formatter.format_response(
         intent=intent,
         entities=entities,
         data=data_for_ai,
-        original_message=message
+        original_message=message,
+        user_message=payload.message,
     )
 
     return schemas.ChatResponse(

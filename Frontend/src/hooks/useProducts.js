@@ -7,17 +7,9 @@ import {
   setLoading,
   setError,
   setFilters,
+  setPagination,
 } from '../store/productSlice';
 import { productService } from '../services/productService';
-
-const useDeepCompareRef = (value) => {
-  const ref = useRef(value);
-  const stringVal = JSON.stringify(value);
-  if (stringVal !== JSON.stringify(ref.current)) {
-    ref.current = value;
-  }
-  return ref;
-};
 
 export const useProducts = () => {
   const dispatch = useDispatch();
@@ -28,68 +20,62 @@ export const useProducts = () => {
   const loading = useSelector((state) => state.product.loading);
   const error = useSelector((state) => state.product.error);
   const filters = useSelector((state) => state.product.filters);
+  const pagination = useSelector((state) => state.product.pagination);
 
-  const prevFiltersRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const loadingRef = useRef(false);
 
-  const abortControllerRef = useRef(null);
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  useEffect(() => {
-    const currentStr = JSON.stringify(filters);
-    const prevStr = JSON.stringify(prevFiltersRef.current);
-    if (currentStr === prevStr) return;
-    prevFiltersRef.current = filters;
-    loadProducts(filters);
-  }, [filters]);
-
-  useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const data = await productService.getCategories();
       dispatch(setCategories(data));
     } catch (err) {
       dispatch(setError(err.message));
     }
-  };
+  }, [dispatch]);
 
-  const loadProducts = async (overrideFilters) => {
-    const requestFilters = overrideFilters ?? filters;
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+  const loadProducts = useCallback(async (overrideFilters) => {
+    const requestFilters = overrideFilters ?? { ...filters, page: pagination.page, limit: pagination.limit };
+    if (loadingRef.current) return;
+    loadingRef.current = true;
 
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
+    const requestId = ++requestIdRef.current;
+    console.log('[useProducts] loadProducts requestId:', requestId, 'filters:', requestFilters);
 
     try {
       dispatch(setLoading(true));
-      dispatch(setProducts([]));
-      const data = await productService.getProducts(requestFilters, abortController.signal);
-      dispatch(setProducts(data));
-    } catch (err) {
-      if (err?.name === 'CanceledError' || err?.name === 'AbortError' || err?.code === 'ERR_CANCELED') {
+      const data = await productService.getProducts(requestFilters);
+      if (requestId !== requestIdRef.current) {
+        console.log('[useProducts] Stale response ignored, requestId:', requestId, 'current:', requestIdRef.current);
         return;
       }
+      console.log('[useProducts] Products loaded:', data.items?.length || 0, 'total:', data.pagination?.total_items);
+      dispatch(setProducts(data));
+      dispatch(setError(null));
+    } catch (err) {
+      if (requestId !== requestIdRef.current) {
+        console.log('[useProducts] Stale error ignored, requestId:', requestId);
+        return;
+      }
+      console.error('[useProducts] Error loading products:', err);
       dispatch(setError(err.message || 'Failed to load products'));
     } finally {
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null;
-      }
+      loadingRef.current = false;
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch, filters.category, filters.type, filters.brand, filters.search, filters.sortBy, filters.featured, pagination.page, pagination.limit]);
 
-  const loadProduct = async (id) => {
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
+    if (loadingRef.current) return;
+    requestIdRef.current = 0;
+    loadProducts();
+  }, [loadProducts]);
+
+  const loadProduct = useCallback(async (id) => {
     try {
       dispatch(setLoading(true));
       const data = await productService.getProductById(id);
@@ -101,12 +87,13 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch]);
 
-  const createProduct = async (product) => {
+  const createProduct = useCallback(async (product) => {
     try {
       dispatch(setLoading(true));
       const data = await productService.createProduct(product);
+      dispatch(setPagination({ page: 1 }));
       await loadProducts();
       return data;
     } catch (err) {
@@ -115,9 +102,9 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch, loadProducts]);
 
-  const createCategory = async (category) => {
+  const createCategory = useCallback(async (category) => {
     try {
       dispatch(setLoading(true));
       const data = await productService.createCategory(category);
@@ -129,9 +116,9 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch, loadCategories]);
 
-  const deleteCategory = async (categoryId) => {
+  const deleteCategory = useCallback(async (categoryId) => {
     try {
       dispatch(setLoading(true));
       await productService.deleteCategory(categoryId);
@@ -142,9 +129,9 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch, loadCategories]);
 
-  const updateProduct = async (id, updates) => {
+  const updateProduct = useCallback(async (id, updates) => {
     try {
       dispatch(setLoading(true));
       const data = await productService.updateProduct(id, updates);
@@ -156,9 +143,9 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch, loadProducts]);
 
-  const deleteProduct = async (id) => {
+  const deleteProduct = useCallback(async (id) => {
     try {
       dispatch(setLoading(true));
       await productService.deleteProduct(id);
@@ -169,7 +156,7 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch, loadProducts]);
 
   const updateFilters = useCallback((newFilters) => {
     dispatch(setFilters(newFilters));
@@ -182,6 +169,7 @@ export const useProducts = () => {
     loading,
     error,
     filters,
+    pagination,
     loadProducts,
     loadProduct,
     createProduct,
