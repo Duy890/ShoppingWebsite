@@ -33,6 +33,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Handle canceled requests — silently ignore, do NOT show UI errors
+    if (axios.isCancel(error) || error.code === 'ERR_CANCELED' || error.name === 'CanceledError') {
+      return Promise.reject(error);
+    }
+
     // Handle timeout
     if (error.code === 'ECONNABORTED') {
       toast.error('Request timeout. Please try again.');
@@ -46,8 +51,13 @@ api.interceptors.response.use(
         toast.error('Network error. Please check your connection.');
         // Dispatch offline event to show offline banner
         window.dispatchEvent(new Event('offline'));
+      } else if (error.code === 'ECONNREFUSED') {
+        toast.error('Server is not reachable. Please ensure the backend is running.');
+      } else if (error.code === 'ECONNRESET') {
+        toast.error('Connection was reset. Please try again.');
       } else {
-        toast.error('Connection error. Please try again.');
+        console.error('[api] Network error details:', error.code, error.message);
+        toast.error(`Connection error: ${error.code || error.message}`);
       }
       return Promise.reject(error);
     }

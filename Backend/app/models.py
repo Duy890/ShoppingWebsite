@@ -266,6 +266,10 @@ class Order(Base):
     delivered_at = Column(DateTime, nullable=True)
     cancelled_at = Column(DateTime, nullable=True)
     cancel_reason = Column(Text, nullable=True)
+    order_note = Column(Text, nullable=True)
+    shipping_method = Column(String(100), nullable=True)
+    shipping_fee = Column(Float, default=0)
+    estimated_delivery_days = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

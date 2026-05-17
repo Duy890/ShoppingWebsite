@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setCartItems,
@@ -12,35 +12,44 @@ export const useCart = () => {
   const dispatch = useDispatch();
   const { items, loading, error } = useSelector((state) => state.cart);
   const { user, isAuthenticated } = useSelector((state) => state.auth);
+  const userId = user?.id;
+  const hasLoadedRef = useRef(false);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadCart();
-    }
-  }, [isAuthenticated, user]);
-
-  const loadCart = async () => {
-    if (!user) return;
+  const loadCart = useCallback(async () => {
+    if (!userId) return;
 
     try {
       dispatch(setLoading(true));
-      const cartItems = await cartService.getCartItems(user.id);
+      const cartItems = await cartService.getCartItems(userId);
       dispatch(setCartItems(cartItems));
     } catch (err) {
       dispatch(setError(err.message));
     } finally {
       dispatch(setLoading(false));
     }
-  };
+  }, [dispatch, userId]);
+
+  useEffect(() => {
+    if (isAuthenticated && userId && !hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadCart();
+    }
+  }, [isAuthenticated, userId, loadCart]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !userId) {
+      hasLoadedRef.current = false;
+    }
+  }, [isAuthenticated, userId]);
 
   const addToCart = async (productId, quantity = 1, variantId = null) => {
-    if (!user) {
+    if (!userId) {
       throw new Error('Please sign in to add items to cart');
     }
 
     try {
       dispatch(setLoading(true));
-      await cartService.addToCart(user.id, productId, quantity, variantId);
+      await cartService.addToCart(userId, productId, quantity, variantId);
       await loadCart();
     } catch (err) {
       dispatch(setError(err.message));
@@ -77,11 +86,11 @@ export const useCart = () => {
   };
 
   const clearCart = async () => {
-    if (!user) return;
+    if (!userId) return;
 
     try {
       dispatch(setLoading(true));
-      await cartService.clearCart(user.id);
+      await cartService.clearCart(userId);
       dispatch(clearCartAction());
     } catch (err) {
       dispatch(setError(err.message));

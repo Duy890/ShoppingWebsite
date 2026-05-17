@@ -79,7 +79,7 @@ const ProductDetail = () => {
         } else if (variant.ram || variant.storage) {
           newParams.set('version', `${variant.ram}|${variant.storage}`);
         }
-        setSearchParams(newParams);
+        setSearchParams(newParams, { replace: true });
       }
     } catch (error) {
       console.error('Error loading product:', error);
@@ -159,7 +159,7 @@ const ProductDetail = () => {
     } else if (variant.ram || variant.storage) {
       newParams.set('version', `${variant.ram}|${variant.storage}`);
     }
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   if (loading) {

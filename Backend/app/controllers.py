@@ -182,9 +182,21 @@ def delete_category(category_id: str, current_user: models.User = Depends(get_cu
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
-@router.get("/products", response_model=list[schemas.ProductRead])
-def read_products(category: str | None = None, search: str | None = None, featured: bool | None = None, sortBy: str | None = None, product_type: str | None = None, brand: str | None = None, db: Session = Depends(get_db)):
-    return services.get_products(db, category, search, featured, sortBy, product_type, brand)
+@router.get("/products")
+def read_products(
+    category: str | None = None,
+    search: str | None = None,
+    featured: bool | None = None,
+    sortBy: str | None = None,
+    product_type: str | None = None,
+    brand: str | None = None,
+    page: int = 1,
+    limit: int = 12,
+    db: Session = Depends(get_db),
+):
+    page = max(1, page)
+    limit = min(max(1, limit), 100)
+    return services.get_products(db, category, search, featured, sortBy, product_type, brand, page, limit)
 
 
 @router.get("/products/{product_id}", response_model=schemas.ProductRead)
@@ -357,6 +369,9 @@ def clear_cart(current_user: models.User = Depends(get_current_user), db: Sessio
 
 @router.post("/orders", response_model=schemas.OrderRead)
 def create_order(payload: schemas.OrderCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"ORDER PAYLOAD RECEIVED: {payload.dict()}")
     try:
         return services.create_order(
             db,
@@ -365,6 +380,9 @@ def create_order(payload: schemas.OrderCreate, current_user: models.User = Depen
             payload.shipping_address,
             payload.payment_method,
             payload.address_id,
+            payload.shipping_method,
+            payload.shipping_fee,
+            payload.order_note,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -412,7 +430,11 @@ def get_order_tracking(order_id: str, current_user: models.User = Depends(get_cu
             estimated_delivery=order.estimated_delivery,
             delivered_at=order.delivered_at,
             cancelled_at=order.cancelled_at,
-            cancel_reason=order.cancel_reason
+            cancel_reason=order.cancel_reason,
+            shipping_method=order.shipping_method,
+            shipping_fee=order.shipping_fee,
+            estimated_delivery_days=order.estimated_delivery_days,
+            order_note=order.order_note,
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))

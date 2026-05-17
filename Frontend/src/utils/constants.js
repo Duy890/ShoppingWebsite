@@ -39,3 +39,39 @@ export const PAYMENT_METHOD_LABELS = {
   paypal: 'PayPal',
   cash_on_delivery: 'Cash on Delivery',
 };
+
+export const SHIPPING_METHODS = {
+  STANDARD: 'standard',
+  EXPRESS: 'express',
+  SAME_DAY: 'same_day',
+};
+
+export const SHIPPING_METHOD_CONFIG = {
+  standard: {
+    code: 'standard',
+    name: 'Standard Delivery',
+    description: '2-5 business days',
+    estimated_days: 3,
+    shipping_fee: 15000,
+  },
+  express: {
+    code: 'express',
+    name: 'Express Delivery',
+    description: '1-2 business days',
+    estimated_days: 1,
+    shipping_fee: 35000,
+  },
+  same_day: {
+    code: 'same_day',
+    name: 'Same Day Delivery',
+    description: 'Delivered today',
+    estimated_days: 0,
+    shipping_fee: 75000,
+  },
+};
+
+export const SHIPPING_METHOD_LABELS = {
+  standard: 'Standard Delivery',
+  express: 'Express Delivery',
+  same_day: 'Same Day Delivery',
+};

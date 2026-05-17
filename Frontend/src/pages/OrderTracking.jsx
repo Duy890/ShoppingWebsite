@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { orderService } from '../services/orderService';
 import { formatPrice } from '../utils/formatPrice';
+import { SHIPPING_METHOD_LABELS } from '../utils/constants';
 import {
   Package,
   Truck,
@@ -56,11 +57,12 @@ const OrderTracking = () => {
     try {
       setLoading(true);
       const [orderData, timelineData] = await Promise.all([
-        orderService.getOrderTracking(orderId),
+        orderService.getOrderById(orderId),
         orderService.getOrderTimeline(orderId),
       ]);
+      console.log('ORDER RESPONSE', orderData);
       setOrder(orderData);
-      setTimeline(timelineData.history);
+      setTimeline(timelineData.history || []);
     } catch (err) {
       setError(err.message || 'Failed to load order tracking');
       toast.error('Failed to load order tracking');
@@ -123,7 +125,7 @@ const OrderTracking = () => {
             Back to Orders
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Order Tracking</h1>
-          <p className="text-gray-600 mt-2">Order #{order.order_id}</p>
+          <p className="text-gray-600 mt-2">Order #{order.id}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -215,6 +217,26 @@ const OrderTracking = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Shipping Information</h3>
               <div className="space-y-3">
+                {order.shipping_method && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Shipping Method</label>
+                    <p className="text-sm text-gray-900 font-semibold">
+                      {SHIPPING_METHOD_LABELS[order.shipping_method] || order.shipping_method}
+                    </p>
+                  </div>
+                )}
+                {order.estimated_delivery_days !== null && order.estimated_delivery_days !== undefined && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Estimated Delivery</label>
+                    <p className="text-sm text-gray-900">
+                      {order.estimated_delivery_days === 0
+                        ? 'Same day'
+                        : order.estimated_delivery_days === 1
+                        ? '1 business day'
+                        : `${order.estimated_delivery_days} business days`}
+                    </p>
+                  </div>
+                )}
                 {order.tracking_code && (
                   <div>
                     <label className="text-sm font-medium text-gray-500">Tracking Code</label>
@@ -229,7 +251,7 @@ const OrderTracking = () => {
                 )}
                 {order.estimated_delivery && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Estimated Delivery</label>
+                    <label className="text-sm font-medium text-gray-500">Estimated Delivery Date</label>
                     <p className="text-sm text-gray-900">
                       {new Date(order.estimated_delivery).toLocaleDateString()}
                     </p>
@@ -241,6 +263,12 @@ const OrderTracking = () => {
                     <p className="text-sm text-gray-900">
                       {new Date(order.delivered_at).toLocaleString()}
                     </p>
+                  </div>
+                )}
+                {order.order_note && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Order Note</label>
+                    <p className="text-sm text-gray-900 italic">{order.order_note}</p>
                   </div>
                 )}
               </div>
@@ -265,11 +293,33 @@ const OrderTracking = () => {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
               <div className="text-2xl font-bold text-gray-900 mb-2">
-                {formatPrice(order.total_amount)}
+                {formatPrice(Number(order?.total_amount || 0))}
               </div>
               <p className="text-sm text-gray-600">
-                {order.items?.length || 0} item{order.items?.length !== 1 ? 's' : ''}
+                {(order?.items || []).reduce((sum, item) => sum + Number(item?.quantity || 0), 0)} items
               </p>
+              {(order?.items || []).length > 0 && (
+                <div className="mt-4 space-y-2 border-t border-gray-100 pt-4">
+                  {(order?.items || []).map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-gray-600">
+                        {item.product?.name || 'Product'} × {item.quantity}
+                      </span>
+                      <span className="font-medium">
+                        {formatPrice(Number(item?.price || 0) * Number(item?.quantity || 0))}
+                      </span>
+                    </div>
+                  ))}
+                  {Number(order?.shipping_fee || 0) > 0 && (
+                    <div className="flex justify-between text-sm pt-2 border-t border-gray-50">
+                      <span className="text-gray-600">Shipping</span>
+                      <span className="font-medium">
+                        {formatPrice(Number(order?.shipping_fee || 0))}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

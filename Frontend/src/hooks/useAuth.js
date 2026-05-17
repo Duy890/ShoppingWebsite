@@ -1,13 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser, setProfile, setLoading, logout as logoutAction } from '../store/authSlice';
 import { authService } from '../services/authService';
 
+let globalAuthInitialized = false;
+let authRequestInProgress = false;
+
 export const useAuth = () => {
   const dispatch = useDispatch();
   const { user, profile, isAuthenticated, loading } = useSelector((state) => state.auth);
+  const initializedRef = useRef(false);
 
   useEffect(() => {
+    if (globalAuthInitialized || initializedRef.current || authRequestInProgress) return;
+    initializedRef.current = true;
+    authRequestInProgress = true;
+
     const initAuth = async () => {
       try {
         const currentUser = await authService.getCurrentUser();
@@ -19,6 +27,8 @@ export const useAuth = () => {
         console.error('Error initializing auth:', error);
       } finally {
         dispatch(setLoading(false));
+        globalAuthInitialized = true;
+        authRequestInProgress = false;
       }
     };
 
@@ -31,8 +41,10 @@ export const useAuth = () => {
         dispatch(setProfile(userProfile));
       } else {
         dispatch(logoutAction());
+        globalAuthInitialized = false;
       }
       dispatch(setLoading(false));
+      authRequestInProgress = false;
     });
 
     return () => {
@@ -40,46 +52,34 @@ export const useAuth = () => {
     };
   }, [dispatch]);
 
-  const signIn = async (email, password) => {
-    try {
-      const user = await authService.signIn(email, password);
-      dispatch(setUser(user));
-      dispatch(setProfile(user));
-      return user;
-    } catch (error) {
-      throw error;
-    }
-  };
+  const signIn = useCallback(async (email, password) => {
+    const user = await authService.signIn(email, password);
+    dispatch(setUser(user));
+    dispatch(setProfile(user));
+    globalAuthInitialized = true;
+    return user;
+  }, [dispatch]);
 
-  const signUp = async (email, password, fullName) => {
-    try {
-      const user = await authService.signUp(email, password, fullName);
-      dispatch(setUser(user));
-      dispatch(setProfile(user));
-      return user;
-    } catch (error) {
-      throw error;
-    }
-  };
+  const signUp = useCallback(async (email, password, fullName) => {
+    const user = await authService.signUp(email, password, fullName);
+    dispatch(setUser(user));
+    dispatch(setProfile(user));
+    globalAuthInitialized = true;
+    return user;
+  }, [dispatch]);
 
-  const logout = async () => {
-    try {
-      await authService.signOut();
-      dispatch(logoutAction());
-    } catch (error) {
-      throw error;
-    }
-  };
+  const logout = useCallback(async () => {
+    await authService.signOut();
+    globalAuthInitialized = false;
+    dispatch(logoutAction());
+  }, [dispatch]);
 
-  const updateProfile = async (updates) => {
-    try {
-      const updatedProfile = await authService.updateProfile(user.id, updates);
-      dispatch(setProfile(updatedProfile));
-      return updatedProfile;
-    } catch (error) {
-      throw error;
-    }
-  };
+  const updateProfile = useCallback(async (updates) => {
+    if (!user?.id) throw new Error('No user ID available');
+    const updatedProfile = await authService.updateProfile(user.id, updates);
+    dispatch(setProfile(updatedProfile));
+    return updatedProfile;
+  }, [dispatch, user?.id]);
 
   return {
     user,

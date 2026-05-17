@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { orderService } from '../../services/orderService';
 import { formatPrice } from '../../utils/formatPrice';
-import { ORDER_STATUS, ORDER_STATUS_LABELS } from '../../utils/constants';
+import { ORDER_STATUS, ORDER_STATUS_LABELS, SHIPPING_METHOD_LABELS } from '../../utils/constants';
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
@@ -69,10 +69,16 @@ const Orders = () => {
                   Date
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Shipping
+                </th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">
                   Total
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">
                   Status
+                </th>
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  Note
                 </th>
                 <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">
                   Actions
@@ -99,6 +105,16 @@ const Orders = () => {
                     {new Date(order.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-gray-900">
+                        {SHIPPING_METHOD_LABELS[order.shipping_method] || 'N/A'}
+                      </span>
+                      <span className="text-[11px] font-medium text-gray-400">
+                        {formatPrice(Number(order.shipping_fee || 0))}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm font-black text-gray-900">
                       {formatPrice(order.total_amount)}
                     </span>
@@ -114,6 +130,11 @@ const Orders = () => {
                       }`}
                     >
                       {ORDER_STATUS_LABELS[order.status]}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap max-w-[200px]">
+                    <span className="text-xs text-gray-500 truncate block" title={order.order_note || ''}>
+                      {order.order_note || '—'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
