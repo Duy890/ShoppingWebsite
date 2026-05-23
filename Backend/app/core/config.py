@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
     SMTP_USER: str = "duyl2282@gmail.com"           # Your Gmail address, e.g. yourapp@gmail.com
-    SMTP_PASSWORD: str = "isor zduw rprf yaqn"       # Gmail App Password (NOT your login password)
+    SMTP_PASSWORD: str = ""       # Gmail App Password (NOT your login password)
     SMTP_FROM_NAME: str = "Electronics Store"
     FRONTEND_URL: str = "http://localhost:5173"
 
