@@ -1,10 +1,17 @@
-from datetime import timedelta
+import hashlib
+import hmac
+import secrets
+import uuid
+from datetime import datetime, timedelta
 from typing import Optional
 
+import requests as http_requests
 from sqlalchemy.orm import Session
 
 from . import models, repositories
+from .core.config import settings
 from .core.security import verify_password, hash_password, create_access_token as _create_access_token
+from .core.email import send_email, build_reset_password_email, build_verify_email_change_email
 
 
 def register_user(db: Session, email: str, password: str, full_name: Optional[str] = None) -> models.User:
@@ -74,12 +81,21 @@ def get_categories_tree(db: Session):
     return repositories.get_categories_tree(db)
 
 
+def get_brands_by_category(db: Session, category_id: str | None = None):
+    return repositories.get_brands_by_category(db, category_id)
+
+
 def get_search_suggestions(db: Session, query: str, limit: int = 8):
     return repositories.get_search_suggestions(db, query, limit)
 
 
-def create_category(db: Session, name: str, description: Optional[str] = None):
-    return repositories.create_category(db, name, description)
+def create_category(
+    db: Session,
+    name: str,
+    description: Optional[str] = None,
+    parent_id: Optional[str] = None,
+):
+    return repositories.create_category(db, name, description, parent_id)
 
 
 def get_category(db: Session, category_id: str):
@@ -93,6 +109,8 @@ def delete_category(db: Session, category_id: str):
     category = repositories.get_category(db, category_id)
     if not category:
         raise ValueError("Category not found")
+    if category.children:
+        raise ValueError("Category has child categories and cannot be deleted")
     if category.products:
         raise ValueError("Category has products and cannot be deleted")
     repositories.delete_category(db, category)
@@ -214,6 +232,27 @@ def create_review(db: Session, user_id: str, product_id: str, rating: int, comme
     if not product:
         raise ValueError("Product not found")
     return repositories.create_review(db, user_id, product_id, rating, comment)
+
+
+def get_wishlist(db: Session, user_id: str):
+    return repositories.get_wishlist(db, user_id)
+
+
+def add_to_wishlist(db: Session, user_id: str, product_id: str):
+    product = repositories.get_product(db, product_id)
+    if not product:
+        raise ValueError("Product not found")
+    return repositories.add_to_wishlist(db, user_id, product_id)
+
+
+def remove_from_wishlist(db: Session, user_id: str, product_id: str):
+    removed = repositories.remove_from_wishlist(db, user_id, product_id)
+    if not removed:
+        raise ValueError("Wishlist item not found")
+
+
+def get_wishlist_product_ids(db: Session, user_id: str) -> list[str]:
+    return repositories.get_wishlist_product_ids(db, user_id)
 
 
 def get_or_create_cart(db: Session, user_id: str):
@@ -429,6 +468,14 @@ def get_admin_stats(db: Session):
     }
 
 
+def get_revenue_by_month(db: Session) -> list[dict]:
+    return repositories.get_revenue_by_month(db)
+
+
+def get_revenue_by_year(db: Session) -> list[dict]:
+    return repositories.get_revenue_by_year(db)
+
+
 # Product Variant Services
 def get_product_variants(db: Session, product_id: str) -> list[models.ProductVariant]:
     product = repositories.get_product(db, product_id)
@@ -469,4 +516,481 @@ def delete_product_variant(db: Session, variant_id: str):
 
     db.delete(variant)
     db.commit()
+
+
+# In-memory store for reset tokens (replace with DB column in production)
+_reset_tokens: dict[str, tuple[str, datetime]] = {}
+_email_change_tokens: dict[str, tuple[str, str, datetime]] = {}
+# token -> (user_id, new_email, expires_at)
+
+
+async def create_reset_token_and_send_email(db: Session, email: str) -> None:
+    """
+    Create a password reset token and send it to the user's email.
+    Raises ValueError if the email is not registered.
+    """
+    user = repositories.get_user_by_email(db, email)
+    if not user:
+        raise ValueError("No account found with this email")
+
+    token = secrets.token_urlsafe(32)
+    _reset_tokens[token] = (email, datetime.utcnow() + timedelta(hours=1))
+
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    html = build_reset_password_email(reset_url, user.full_name or "")
+    await send_email(
+        to=email,
+        subject="Reset your password — Electronics Store",
+        html_body=html,
+    )
+
+
+async def create_email_change_token_and_send(db: Session, user: models.User, new_email: str) -> None:
+    """
+    Create an email-change verification token and send it to the new address.
+    Raises ValueError if new_email is already taken.
+    """
+    existing = repositories.get_user_by_email(db, new_email)
+    if existing and existing.id != user.id:
+        raise ValueError("This email is already registered to another account")
+
+    token = secrets.token_urlsafe(32)
+    _email_change_tokens[token] = (user.id, new_email, datetime.utcnow() + timedelta(hours=1))
+
+    verify_url = f"{settings.FRONTEND_URL}/verify-email-change?token={token}"
+    html = build_verify_email_change_email(verify_url, new_email, user.full_name or "")
+    await send_email(
+        to=new_email,
+        subject="Confirm your new email — Electronics Store",
+        html_body=html,
+    )
+
+
+def confirm_email_change(db: Session, token: str) -> models.User:
+    """Apply the email change after the user clicks the verification link."""
+    if token not in _email_change_tokens:
+        raise ValueError("Invalid or expired verification token")
+
+    user_id, new_email, expires = _email_change_tokens[token]
+    if datetime.utcnow() > expires:
+        del _email_change_tokens[token]
+        raise ValueError("Verification link has expired")
+
+    user = repositories.get_user(db, user_id)
+    if not user:
+        raise ValueError("User not found")
+
+    user.email = new_email
+    db.commit()
+    del _email_change_tokens[token]
+    return user
+
+
+def create_reset_token(db: Session, email: str) -> str:
+    user = repositories.get_user_by_email(db, email)
+    if not user:
+        raise ValueError("No account found with this email")
+    token = secrets.token_urlsafe(32)
+    _reset_tokens[token] = (email, datetime.utcnow() + timedelta(hours=1))
+    return token
+
+
+def reset_password(db: Session, token: str, new_password: str) -> models.User:
+    if token not in _reset_tokens:
+        raise ValueError("Invalid or expired reset token")
+    email, expires = _reset_tokens[token]
+    if datetime.utcnow() > expires:
+        del _reset_tokens[token]
+        raise ValueError("Reset token has expired")
+    user = repositories.get_user_by_email(db, email)
+    if not user:
+        raise ValueError("User not found")
+    user.hashed_password = hash_password(new_password)
+    db.commit()
+    del _reset_tokens[token]
+    return user
+
+
+def create_momo_payment(amount: int, order_id: str, order_info: str) -> dict:
+    partner_code = settings.MOMO_PARTNER_CODE
+    access_key = settings.MOMO_ACCESS_KEY
+    secret_key = settings.MOMO_SECRET_KEY
+    redirect_url = settings.MOMO_REDIRECT_URL
+    ipn_url = settings.MOMO_IPN_URL
+    request_id = f"{order_id}_{uuid.uuid4().hex[:8]}"
+    extra_data = ""
+    request_type = "captureWallet"
+
+    raw_signature = (
+        f"accessKey={access_key}"
+        f"&amount={amount}"
+        f"&extraData={extra_data}"
+        f"&ipnUrl={ipn_url}"
+        f"&orderId={order_id}"
+        f"&orderInfo={order_info}"
+        f"&partnerCode={partner_code}"
+        f"&redirectUrl={redirect_url}"
+        f"&requestId={request_id}"
+        f"&requestType={request_type}"
+    )
+
+    signature = hmac.new(
+        secret_key.encode("utf-8"),
+        raw_signature.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    payload = {
+        "partnerCode": partner_code,
+        "requestType": request_type,
+        "ipnUrl": ipn_url,
+        "redirectUrl": redirect_url,
+        "orderId": order_id,
+        "amount": amount,
+        "orderInfo": order_info,
+        "requestId": request_id,
+        "extraData": extra_data,
+        "lang": "vi",
+        "signature": signature,
+    }
+
+    try:
+        response = http_requests.post(
+            settings.MOMO_ENDPOINT,
+            json=payload,
+            timeout=30,
+            headers={"Content-Type": "application/json; charset=UTF-8"},
+        )
+    except http_requests.exceptions.ConnectionError as e:
+        raise ValueError(f"Cannot connect to MoMo gateway: {e}")
+    except http_requests.exceptions.Timeout:
+        raise ValueError("MoMo gateway timed out (>30s). Try again.")
+
+    try:
+        data = response.json()
+    except Exception:
+        raise ValueError(
+            f"MoMo returned non-JSON response (HTTP {response.status_code}): {response.text[:200]}"
+        )
+
+    if data.get("resultCode", -1) != 0:
+        raise ValueError(
+            f"MoMo error {data.get('resultCode')}: {data.get('message', 'Unknown error')}"
+        )
+
+    return data
+
+
+def verify_momo_ipn_signature(payload: dict) -> bool:
+    access_key = settings.MOMO_ACCESS_KEY
+    secret_key = settings.MOMO_SECRET_KEY
+
+    raw = (
+        f"accessKey={access_key}"
+        f"&amount={payload['amount']}"
+        f"&extraData={payload['extraData']}"
+        f"&message={payload['message']}"
+        f"&orderId={payload['orderId']}"
+        f"&orderInfo={payload['orderInfo']}"
+        f"&orderType={payload['orderType']}"
+        f"&partnerCode={payload['partnerCode']}"
+        f"&payType={payload['payType']}"
+        f"&requestId={payload['requestId']}"
+        f"&responseTime={payload['responseTime']}"
+        f"&resultCode={payload['resultCode']}"
+        f"&transId={payload['transId']}"
+    )
+
+    expected = hmac.new(
+        secret_key.encode("utf-8"),
+        raw.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+    return hmac.compare_digest(expected, payload.get("signature", ""))
+
+
+def get_recommendations(
+    db: Session,
+    user_id: str | None = None,
+    product_id: str | None = None,
+    limit: int = 8,
+) -> list[dict]:
+    import math
+    from sqlalchemy import func
+
+    purchased_ids: set[str] = set()
+    purchased_categories: set[str] = set()
+    purchased_brands: set[str] = set()
+    cart_product_ids: set[str] = set()
+    wishlist_ids: set[str] = set()
+
+    if user_id:
+        orders = (
+            db.query(models.OrderItem)
+            .join(models.Order, models.Order.id == models.OrderItem.order_id)
+            .join(models.Product, models.Product.id == models.OrderItem.product_id)
+            .filter(
+                models.Order.user_id == user_id,
+                models.Order.status.notin_(["cancelled", "payment_failed"]),
+            )
+            .all()
+        )
+        for item in orders:
+            purchased_ids.add(item.product_id)
+            product = db.query(models.Product).filter(
+                models.Product.id == item.product_id
+            ).first()
+            if product:
+                if product.category_id:
+                    purchased_categories.add(product.category_id)
+                if product.brand:
+                    purchased_brands.add(product.brand.lower())
+
+        cart = db.query(models.Cart).filter(
+            models.Cart.user_id == user_id
+        ).first()
+        if cart:
+            cart_items = db.query(models.CartItem).filter(
+                models.CartItem.cart_id == cart.id
+            ).all()
+            cart_product_ids = {item.product_id for item in cart_items}
+
+        wishlist_ids = set(
+            repositories.get_wishlist_product_ids(db, user_id)
+        )
+
+    order_counts: dict[str, int] = {}
+    rows = (
+        db.query(
+            models.OrderItem.product_id,
+            func.count(models.OrderItem.id).label("cnt"),
+        )
+        .join(models.Order)
+        .filter(models.Order.status.notin_(["cancelled", "payment_failed"]))
+        .group_by(models.OrderItem.product_id)
+        .all()
+    )
+    for r in rows:
+        order_counts[r.product_id] = r.cnt
+
+    cart_counts: dict[str, int] = {}
+    rows = (
+        db.query(
+            models.CartItem.product_id,
+            func.count(models.CartItem.id).label("cnt"),
+        )
+        .group_by(models.CartItem.product_id)
+        .all()
+    )
+    for r in rows:
+        cart_counts[r.product_id] = r.cnt
+
+    products = (
+        db.query(models.Product)
+        .filter(
+            models.Product.status == "active",
+            models.Product.stock > 0,
+        )
+        .all()
+    )
+
+    scored: list[tuple[float, models.Product]] = []
+
+    for product in products:
+        if product_id and product.id == product_id:
+            continue
+        if product.id in purchased_ids:
+            continue
+
+        view_score = math.log(max(product.view_count or 0, 0) + 1)
+        order_score = order_counts.get(product.id, 0) * 3.0
+        cart_score = cart_counts.get(product.id, 0) * 1.5
+        rating_score = (product.rating or 0) * 1.0
+        popularity = view_score + order_score + cart_score + rating_score
+
+        personal = 0.0
+        if product.category_id in purchased_categories:
+            personal += 5.0
+        if product.brand and product.brand.lower() in purchased_brands:
+            personal += 3.0
+        if product.id in wishlist_ids:
+            personal += 2.0
+
+        abandoned = 4.0 if product.id in cart_product_ids else 0.0
+
+        final_score = popularity + personal + abandoned
+
+        if not user_id:
+            final_score = popularity
+
+        scored.append((final_score, product))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top_products = [p for _, p in scored[:limit]]
+
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "price": p.price,
+            "image_url": p.image_url,
+            "brand": p.brand,
+            "rating": p.rating,
+            "review_count": p.review_count,
+            "product_type": p.product_type,
+            "category_id": p.category_id,
+        }
+        for p in top_products
+    ]
+
+
+def get_similar_products(
+    db: Session,
+    product_id: str,
+    limit: int = 6,
+) -> list[dict]:
+    source = db.query(models.Product).filter(
+        models.Product.id == product_id
+    ).first()
+    if not source:
+        return []
+
+    products = (
+        db.query(models.Product)
+        .filter(
+            models.Product.status == "active",
+            models.Product.stock > 0,
+            models.Product.id != product_id,
+        )
+        .all()
+    )
+
+    scored = []
+    for p in products:
+        score = 0.0
+        if source.category_id and p.category_id == source.category_id:
+            score += 5.0
+        if source.brand and p.brand and p.brand.lower() == source.brand.lower():
+            score += 3.0
+        if source.product_type and p.product_type == source.product_type:
+            score += 2.0
+        if source.price:
+            price_ratio = p.price / source.price
+            if 0.7 <= price_ratio <= 1.3:
+                score += 2.0
+        score += (p.rating or 0) * 0.5
+        if score > 0:
+            scored.append((score, p))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    top = [p for _, p in scored[:limit]]
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "price": p.price,
+            "image_url": p.image_url,
+            "brand": p.brand,
+            "rating": p.rating,
+            "review_count": p.review_count,
+            "product_type": p.product_type,
+        }
+        for p in top
+    ]
+
+
+def get_cart_recommendations(
+    db: Session,
+    user_id: str,
+    limit: int = 4,
+) -> list[dict]:
+    cart = db.query(models.Cart).filter(
+        models.Cart.user_id == user_id
+    ).first()
+    if not cart:
+        return []
+
+    cart_items = db.query(models.CartItem).filter(
+        models.CartItem.cart_id == cart.id
+    ).all()
+    if not cart_items:
+        return []
+
+    cart_pids = {item.product_id for item in cart_items}
+
+    from sqlalchemy import func as sqlfunc
+    co_purchased: dict[str, int] = {}
+    for pid in cart_pids:
+        order_ids = (
+            db.query(models.OrderItem.order_id)
+            .filter(models.OrderItem.product_id == pid)
+            .subquery()
+        )
+        rows = (
+            db.query(
+                models.OrderItem.product_id,
+                sqlfunc.count(models.OrderItem.id).label("cnt"),
+            )
+            .filter(
+                models.OrderItem.order_id.in_(order_ids),
+                models.OrderItem.product_id.notin_(cart_pids),
+            )
+            .group_by(models.OrderItem.product_id)
+            .all()
+        )
+        for r in rows:
+            co_purchased[r.product_id] = (
+                co_purchased.get(r.product_id, 0) + r.cnt
+            )
+
+    if co_purchased:
+        top_pids = sorted(
+            co_purchased, key=lambda pid: co_purchased[pid], reverse=True
+        )[:limit]
+        products = (
+            db.query(models.Product)
+            .filter(
+                models.Product.id.in_(top_pids),
+                models.Product.status == "active",
+                models.Product.stock > 0,
+            )
+            .all()
+        )
+        if products:
+            return [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "price": p.price,
+                    "image_url": p.image_url,
+                    "brand": p.brand,
+                    "rating": p.rating,
+                }
+                for p in products[:limit]
+            ]
+
+    category_ids = set()
+    for pid in cart_pids:
+        p = db.query(models.Product).filter(models.Product.id == pid).first()
+        if p and p.category_id:
+            category_ids.add(p.category_id)
+
+    fallback = (
+        db.query(models.Product)
+        .filter(
+            models.Product.category_id.in_(category_ids),
+            models.Product.id.notin_(cart_pids),
+            models.Product.status == "active",
+            models.Product.stock > 0,
+        )
+        .order_by(models.Product.view_count.desc(), models.Product.rating.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {"id": p.id, "name": p.name, "price": p.price,
+         "image_url": p.image_url, "brand": p.brand, "rating": p.rating}
+        for p in fallback
+    ]
 

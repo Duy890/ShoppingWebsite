@@ -12,10 +12,16 @@ import Cart from '../pages/Cart';
 import Checkout from '../pages/Checkout';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
+import ForgotPassword from '../pages/ForgotPassword';
+import ResetPassword from '../pages/ResetPassword';
 import Profile from '../pages/Profile';
+import EditProfile from '../pages/EditProfile';
+import Wishlist from '../pages/Wishlist';
+import CompareProducts from '../pages/CompareProducts';
 import Dashboard from '../pages/admin/Dashboard';
 import Products from '../pages/admin/Products';
 import AddProduct from '../pages/admin/AddProduct';
+import EditProduct from '../pages/admin/EditProduct';
 import Categories from '../pages/admin/Categories';
 import Orders from '../pages/admin/Orders';
 import NotFound from '../pages/NotFound';
@@ -23,6 +29,7 @@ import ServerError from '../pages/ServerError';
 import Maintenance from '../pages/Maintenance';
 import AccessDenied from '../pages/AccessDenied';
 import OrderTracking from '../pages/OrderTracking';
+import PaymentResult from '../pages/PaymentResult';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -65,6 +72,8 @@ const AppRoutes = () => {
           <Route path="/category/:categoryId" element={<CategoryPage />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/register" element={<Register />} />
           <Route path="/signup" element={<Register />} />
           <Route
@@ -99,6 +108,25 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/edit-profile"
+            element={
+              <ProtectedRoute>
+                <EditProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/verify-email-change" element={<div />} />
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <Wishlist />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/compare" element={<CompareProducts />} />
+          <Route path="/payment/result" element={<PaymentResult />} />
         </Route>
 
         {/* Admin Routes */}
@@ -113,6 +141,7 @@ const AppRoutes = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="products" element={<Products />} />
           <Route path="products/add" element={<AddProduct />} />
+          <Route path="products/edit/:id" element={<EditProduct />} />
           <Route path="categories" element={<Categories />} />
           <Route path="orders" element={<Orders />} />
         </Route>

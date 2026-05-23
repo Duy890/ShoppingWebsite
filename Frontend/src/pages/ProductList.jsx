@@ -1,9 +1,11 @@
 import { useEffect, useMemo, memo, useCallback, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { setFilters, setPagination, clearFilters } from '../store/productSlice';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
+import { productService } from '../services/productService';
 import { SlidersHorizontal, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PAGE_SIZES = [12, 24, 48, 96];
@@ -20,11 +22,13 @@ const findCategoryBySlug = (navTree, slug) => {
 };
 
 const ProductList = () => {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, categories, loading, error, pagination, loadProducts } = useProducts();
   const navTree = useSelector((state) => state.navigation.navTree);
   const sortBy = useSelector((state) => state.product.filters.sortBy);
+  const [allBrands, setAllBrands] = useState([]);
 
   const categoryParam = searchParams.get('category');
   const typeParam = searchParams.get('type');
@@ -51,6 +55,22 @@ const ProductList = () => {
       search: searchParam,
     }));
   }, [dispatch, categoryParam, typeParam, brandParam, searchParam]);
+
+  useEffect(() => {
+    const loadBrandOptions = async () => {
+      try {
+        const data = await productService.getNavigationBrands(categoryParam);
+        const uniqueBrands = [...new Set((data || []).map((brand) => brand?.trim()).filter(Boolean))].sort((a, b) =>
+          a.localeCompare(b, undefined, { sensitivity: 'base' })
+        );
+        setAllBrands(uniqueBrands);
+      } catch (err) {
+        console.error('[ProductList] Failed to load brand options:', err);
+      }
+    };
+
+    loadBrandOptions();
+  }, [categoryParam]);
 
   useEffect(() => {
     console.log('[ProductList] URL pagination changed, syncing to Redux:', { page: pageParam, limit: limitParam });
@@ -127,10 +147,36 @@ const ProductList = () => {
       return brandParam;
     }
     if (searchParam) {
-      return `Search: ${searchParam}`;
+      return `${t('products.filter_by')}: ${searchParam}`;
     }
-    return 'All Electronics';
+    return t('products.all_electronics');
   }, [categoryParam, typeParam, brandParam, searchParam, categories, navTree]);
+
+  const availableBrands = useMemo(() => {
+    if (allBrands.length > 0) {
+      return allBrands;
+    }
+
+    const brands = products
+      .map((product) => product.brand)
+      .filter(Boolean)
+      .map((brand) => brand.trim())
+      .filter((brand, index, self) => self.indexOf(brand) === index)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    return brands;
+  }, [allBrands, products]);
+
+  const handleBrandChange = useCallback((brand) => {
+    setSearchParams((prev) => {
+      if (brand) {
+        prev.set('brand', brand);
+      } else {
+        prev.delete('brand');
+      }
+      prev.delete('page');
+      return prev;
+    });
+  }, [setSearchParams]);
 
   const hasActiveFilters = Boolean(categoryParam || typeParam || brandParam || searchParam);
 
@@ -145,9 +191,9 @@ const ProductList = () => {
             {activeCategoryName}
           </h1>
           <div className="mt-4 flex items-center space-x-2 text-sm font-bold uppercase tracking-widest opacity-70">
-            <span>Products</span>
+            <span>{t('products.products')}</span>
             <span className="w-1 h-1 rounded-full bg-white opacity-50"></span>
-            <span>{pagination.total_items || products.length} Items</span>
+            <span>{pagination.total_items || products.length} {t('products.products')}</span>
           </div>
         </div>
       </div>
@@ -159,7 +205,7 @@ const ProductList = () => {
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-50">
                 <h2 className="font-black uppercase tracking-tighter flex items-center gap-2">
                   <SlidersHorizontal className="w-4 h-4 text-primary" />
-                  Filters
+                  {t('products.filter_by')}
                 </h2>
                 {hasActiveFilters && (
                    <button 
@@ -173,15 +219,15 @@ const ProductList = () => {
               
               <div className="space-y-6">
                 <div>
-                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Sorting</h3>
+                   <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">{t('products.sort_by')}</h3>
                    <div className="relative group">
                      <select 
                       value={sortBy}
                       onChange={handleSortChange}
                       className="w-full appearance-none bg-gray-50 border-none rounded-2xl px-5 py-3 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
                      >
-                        <option value="created_at">Latest Arrivals</option>
-                        <option value="price">Price: Low to High</option>
+                        <option value="created_at">{t('products.newest_first')}</option>
+                        <option value="price">{t('products.price_low_high')}</option>
                      </select>
                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-hover:text-primary transition-colors" />
                    </div>
@@ -205,15 +251,46 @@ const ProductList = () => {
                     ))}
                   </div>
                 </div>
+
+                <div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">{t('products.categories')}</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleBrandChange('')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                        !brandParam
+                          ? 'bg-primary text-white'
+                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-100'
+                      }`}
+                    >
+                      {t('products.all_products')}
+                    </button>
+                    {availableBrands.map((brand) => (
+                      <button
+                        key={brand}
+                        type="button"
+                        onClick={() => handleBrandChange(brand)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                          brandParam === brand
+                            ? 'bg-primary text-white'
+                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-100'
+                        }`}
+                      >
+                        {brand}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
             
             <div className="bg-gray-900 rounded-3xl p-8 text-white relative overflow-hidden group">
                <div className="relative z-10">
-                  <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2">Member Special</p>
-                  <h3 className="text-2xl font-black tracking-tighter mb-4">Get 20% OFF</h3>
-                  <p className="text-sm text-gray-400 mb-6">On all laptop accessories for premium members.</p>
-                  <button className="bg-white text-gray-900 px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">Join Now</button>
+                  <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2">{t('products.member_special')}</p>
+                  <h3 className="text-2xl font-black tracking-tighter mb-4">{t('products.member_special_title')}</h3>
+                  <p className="text-sm text-gray-400 mb-6">{t('products.member_special_desc')}</p>
+                  <button className="bg-white text-gray-900 px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all">{t('products.join_now')}</button>
                </div>
                <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-primary/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
             </div>
@@ -222,13 +299,13 @@ const ProductList = () => {
           <main className="flex-1">
             {error ? (
               <div className="col-span-full py-24 text-center">
-                <p className="text-2xl font-black text-red-400 uppercase italic">Failed to load products</p>
+                <p className="text-2xl font-black text-red-400 uppercase italic">{t('products.failed_to_load')}</p>
                 <p className="text-gray-400 mt-2">{error}</p>
                 <button
                   onClick={() => loadProducts()}
                   className="mt-6 bg-primary text-white px-8 py-3 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-gray-900 transition-all"
                 >
-                  Retry
+                  {t('products.retry')}
                 </button>
               </div>
             ) : loading ? (
@@ -253,11 +330,11 @@ const ProductList = () => {
                       className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-gray-50 text-gray-700 hover:bg-gray-100"
                     >
                       <ChevronLeft className="w-4 h-4" />
-                      Prev
+                      {t('products.prev')}
                     </button>
 
                     <span className="text-sm font-black text-gray-900 px-4">
-                      Page {currentPage} of {totalPages}
+                      {t('products.page_label', { current: currentPage, total: totalPages })}
                     </span>
 
                     <button
@@ -265,7 +342,7 @@ const ProductList = () => {
                       disabled={currentPage >= totalPages}
                       className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-gray-50 text-gray-700 hover:bg-gray-100"
                     >
-                      Next
+                      {t('products.next')}
                       <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -278,14 +355,14 @@ const ProductList = () => {
                       value={jumpPage}
                       onChange={(e) => setJumpPage(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleJumpSubmit()}
-                      placeholder="Page #"
+                      placeholder={t('products.page_placeholder')}
                       className="w-20 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-sm font-bold text-center text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                     />
                     <button
                       onClick={handleJumpSubmit}
                       className="px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest bg-primary text-white hover:bg-gray-900 transition-all"
                     >
-                      Go
+                      {t('products.go')}
                     </button>
                   </div>
                 </div>

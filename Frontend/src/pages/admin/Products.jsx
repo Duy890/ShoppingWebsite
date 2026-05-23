@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, CreditCard as Edit, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Trash2 } from 'lucide-react';
 import { useProducts } from '../../hooks/useProducts';
 import { useAuth } from '../../hooks/useAuth';
 import { formatPrice } from '../../utils/formatPrice';
@@ -30,6 +30,7 @@ const flattenGroupedSpecifications = (groupedSpecs) => {
 };
 
 const Products = () => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { products, categories, loading, createProduct, updateProduct, deleteProduct } = useProducts();
   const [showModal, setShowModal] = useState(false);
@@ -219,10 +220,10 @@ const Products = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
-                      onClick={() => handleEdit(product)}
-                      className="text-blue-600 hover:text-blue-900 mr-4"
+                      onClick={() => navigate(`/admin/products/edit/${product.id}`)}
+                      className="text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors mr-3"
                     >
-                      <Edit className="w-5 h-5" />
+                      Edit
                     </button>
                     <button
                       onClick={() => handleDelete(product.id)}

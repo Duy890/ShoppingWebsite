@@ -131,7 +131,7 @@ const Wishlist = () => {
 
                   <div className="space-y-2 pt-3 border-t border-gray-100">
                     <button
-                      onClick={() => navigate(`/products/${item.product.id}`)}
+                      onClick={() => navigate(`/product/${item.product.id}`)}
                       className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-200 transition"
                     >
                       View Details

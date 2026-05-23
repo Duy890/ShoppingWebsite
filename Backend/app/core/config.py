@@ -1,9 +1,21 @@
+import os
+
 try:
     from pydantic import BaseSettings
 except ImportError:
     from pydantic_settings import BaseSettings
 
 from typing import Optional
+
+
+ALLOWED_ORIGINS: list[str] = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
+    if origin.strip()
+]
 
 
 class Settings(BaseSettings):
@@ -14,6 +26,23 @@ class Settings(BaseSettings):
 
     # Legacy (kept for backward compat)
     OPENAI_API_KEY: Optional[str] = None
+
+    # MoMo Payment (Sandbox)
+    MOMO_PARTNER_CODE: str = ""
+    MOMO_ACCESS_KEY: str = ""
+    MOMO_SECRET_KEY: str = ""
+    MOMO_ENDPOINT: str = "https://test-payment.momo.vn/v2/gateway/api/create"
+    MOMO_REDIRECT_URL: str = "http://localhost:5173/payment/result"
+    MOMO_IPN_URL: str = ""
+    # Change to a real webhook.site URL or ngrok HTTPS URL for MoMo IPN callbacks
+
+    # Email / SMTP
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "duyl2282@gmail.com"           # Your Gmail address, e.g. yourapp@gmail.com
+    SMTP_PASSWORD: str = "isor zduw rprf yaqn"       # Gmail App Password (NOT your login password)
+    SMTP_FROM_NAME: str = "Electronics Store"
+    FRONTEND_URL: str = "http://localhost:5173"
 
     # OpenRouter
     OPENROUTER_API_KEY: Optional[str] = None

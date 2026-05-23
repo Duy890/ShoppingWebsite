@@ -3,6 +3,7 @@ import { ShoppingCart, Star } from 'lucide-react';
 import { formatPrice } from '../utils/formatPrice';
 import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
+import WishlistButton from './WishlistButton';
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
@@ -57,6 +58,17 @@ const ProductCard = ({ product }) => {
             </span>
           </div>
         )}
+
+        {/* Wishlist Button */}
+        <div
+          className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          onClick={(e) => e.preventDefault()}
+        >
+          <WishlistButton
+            productId={product.id}
+            className="shadow-md bg-white/90 backdrop-blur-sm"
+          />
+        </div>
       </Link>
 
       {/* Content */}

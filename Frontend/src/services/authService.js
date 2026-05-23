@@ -72,6 +72,31 @@ export const authService = {
     return response.data;
   },
 
+  async forgotPassword(email) {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async resetPassword(token, newPassword) {
+    const response = await api.post('/auth/reset-password', { token, new_password: newPassword });
+    return response.data;
+  },
+
+  async requestEmailChange(newEmail) {
+    const response = await api.post('/auth/request-email-change', { new_email: newEmail });
+    return response.data;
+  },
+
+  async changePassword(currentPassword, newPassword) {
+    const response = await api.post('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
+
+  // NOTE: This is a no-op stub. JWT auth uses axios interceptors (api.js)
+  // for 401 handling. No real-time auth state subscription is needed.
   onAuthStateChange(callback) {
     return {
       subscription: {

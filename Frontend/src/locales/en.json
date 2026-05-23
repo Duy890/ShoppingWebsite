@@ -6,6 +6,8 @@
     "categories": "Categories",
     "all_products": "All Products",
     "search_placeholder": "Search for electronics, gadgets...",
+    "phone_category": "Phones",
+    "laptop_category": "Laptops",
     "cart": "Cart",
     "login": "Login",
     "signup": "Sign Up",
@@ -17,6 +19,20 @@
     "english": "English",
     "vietnamese": "Vietnamese",
     "language": "Language"
+  },
+  "settings": {
+    "title": "Settings",
+    "dark_mode": "Dark Mode"
+  },
+  "search_suggestions": {
+    "title": "Suggestions",
+    "close": "Close",
+    "loading": "Loading suggestions…",
+    "no_suggestions": "No suggestions found",
+    "no_suggestions_help": "Try a broader search term like phone, laptop or headphones.",
+    "no_suggestions_action": "Press Enter to search all products",
+    "start_typing_title": "Start typing to preview products and categories",
+    "start_typing_desc": "Search by product name, brand, or category."
   },
   "home": {
     "hero": {
@@ -108,6 +124,9 @@
     "address_placeholder": "Enter your full shipping address...",
     "payment_method": "Payment Method",
     "protection_text": "Your purchase is protected. We use industry-standard encryption to ensure your data stays safe and private. By clicking \"Complete Purchase\", you agree to our Terms of Service.",
+    "shipping_method": "Shipping Method",
+    "order_note": "Order Note",
+    "note_placeholder": "Additional delivery instructions (optional)...",
     "processing": "Processing Transaction...",
     "complete_purchase": "Complete Purchase",
     "order_summary": "Order Summary",
@@ -115,6 +134,12 @@
     "subtotal": "Subtotal",
     "shipping": "Shipping",
     "total": "Total",
+    "empty_cart_error": "Your cart is empty.",
+    "select_address_error": "Please select a delivery address.",
+    "select_payment_method_error": "Please select a payment method.",
+    "select_shipping_method_error": "Please select a shipping method.",
+    "momo_redirect": "Redirecting to MoMo...",
+    "momo_order_description": "Payment for order #{{orderId}}",
     "success_message": "Order placed successfully!",
     "payment_methods": {
       "credit_card": "Credit Card",
@@ -122,6 +147,18 @@
       "paypal": "PayPal",
       "cash_on_delivery": "Cash on Delivery"
     }
+  },
+  "search_results": {
+    "section_title": "Search results",
+    "results_for": "Results for “{{query}}”",
+    "search_everything": "Search everything",
+    "query_description": "Discover matching products across categories and brands.",
+    "default_description": "Use the search bar above to find products, categories, and trending tech.",
+    "error_loading": "Unable to load search results at this time.",
+    "no_results_title": "No search results found",
+    "no_results_desc": "Try broader words or browse a category instead.",
+    "browse_all_products": "Browse all products",
+    "explore_popular_items": "Explore popular items"
   },
   "products": {
     "catalogue_badge": "Catalogue",
@@ -131,6 +168,17 @@
     "categories": "Categories",
     "all_products": "All Products",
     "sort_by": "Sort By",
+    "member_special": "Member Special",
+    "member_special_title": "Get 20% OFF",
+    "member_special_desc": "On all laptop accessories for premium members.",
+    "join_now": "Join Now",
+    "failed_to_load": "Failed to load products",
+    "retry": "Retry",
+    "prev": "Prev",
+    "next": "Next",
+    "page_label": "Page {{current}} of {{total}}",
+    "page_placeholder": "Page #",
+    "go": "Go",
     "newest_first": "Newest First",
     "price_low_high": "Price: Low to High",
     "alphabetical": "Alphabetical",
@@ -154,6 +202,8 @@
     "free_delivery": "Free Delivery",
     "returns_policy": "30 Day Returns",
     "specifications": "Specifications",
+    "description_tab": "Description",
+    "description_missing": "No detailed description is available for this product.",
     "model_name": "Model Name",
     "brand": "Brand",
     "sku": "SKU",
@@ -175,5 +225,13 @@
     "review_success_alert": "Review submitted successfully!",
     "product_not_found": "Product Not Found",
     "back_to_catalog": "Back to Catalog"
+  },
+  "payment_result": {
+    "success_title": "Payment Successful!",
+    "order_confirmed": "Order #{{order}} has been confirmed.",
+    "failed_title": "Payment Failed",
+    "failed_message": "The transaction was unsuccessful. Please try again.",
+    "view_orders": "View My Orders",
+    "back_home": "Back to Home"
   }
 }

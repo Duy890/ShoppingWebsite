@@ -1,13 +1,16 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout as logoutAction } from '../store/authSlice';
 import { productService } from '../services/productService';
 import { authService } from '../services/authService';
 import { useNavigation } from '../hooks/useNavigation';
+import { useTheme } from '../contexts/ThemeContext';
 import { setFilters } from '../store/productSlice';
 import SearchSuggestions from './SearchSuggestions';
 import CategoryMegaMenu from './CategoryMegaMenu';
+import i18n from '../i18n';
 import {
   ShoppingCart,
   User,
@@ -22,21 +25,13 @@ import {
 } from 'lucide-react';
 
 const languageOptions = [
-  { code: 'en', label: 'English' },
-  { code: 'vi', label: 'Tiếng Việt' },
+  { code: 'en', labelKey: 'common.english' },
+  { code: 'vi', labelKey: 'common.vietnamese' },
 ];
 
-const translations = {
-  en: {
-    settings: 'Settings',
-    language: 'Language',
-    darkMode: 'Dark Mode',
-  },
-  vi: {
-    settings: 'Cài đặt',
-    language: 'Ngôn ngữ',
-    darkMode: 'Chế độ tối',
-  },
+const normalizeLanguage = (value) => {
+  if (!value) return 'en';
+  return value.toLowerCase().startsWith('vi') ? 'vi' : 'en';
 };
 
 const Navbar = memo(() => {
@@ -49,10 +44,11 @@ const Navbar = memo(() => {
 
   const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
 
+  const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [language, setLanguage] = useState(() => localStorage.getItem('app_language') || 'en');
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('app_theme') === 'dark');
+  const { darkMode, toggleDarkMode } = useTheme();
+  const [language, setLanguage] = useState(() => normalizeLanguage(localStorage.getItem('app_language') || i18n.language || 'en'));
   const [searchTerm, setSearchTerm] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
@@ -64,17 +60,15 @@ const Navbar = memo(() => {
 
   useEffect(() => {
     console.count("Navbar render");
-  },[]);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('app_language', language);
+    if (typeof i18n?.changeLanguage === 'function') {
+      i18n.changeLanguage(language);
+    }
     document.documentElement.lang = language;
   }, [language]);
-
-  useEffect(() => {
-    localStorage.setItem('app_theme', darkMode ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', darkMode);
-  }, [darkMode]);
 
   useEffect(() => {
     const handleEsc = (event) => {
@@ -186,9 +180,9 @@ const Navbar = memo(() => {
     <header className="sticky top-0 z-50 w-full">
       <div className="bg-gray-100 py-1 hidden sm:block">
         <div className="max-w-7xl mx-auto px-4 flex justify-end space-x-6 text-[10px] font-medium text-gray-500 uppercase tracking-wider">
-          <Link to="#" className="hover:text-primary transition-colors">Order Tracking</Link>
-          <Link to="#" className="hover:text-primary transition-colors">Store Locator</Link>
-          <Link to="#" className="hover:text-primary transition-colors">Support</Link>
+          <Link to="#" className="hover:text-primary transition-colors">{t('navbar.order_tracking')}</Link>
+          <Link to="#" className="hover:text-primary transition-colors">{t('navbar.store_locator')}</Link>
+          <Link to="#" className="hover:text-primary transition-colors">{t('navbar.support')}</Link>
         </div>
       </div>
 
@@ -206,7 +200,7 @@ const Navbar = memo(() => {
                 onMouseEnter={() => setIsMegaOpen(true)}
                 onClick={() => setIsMegaOpen((value) => !value)}
               >
-                <span>Categories</span>
+                <span>{t('navbar.categories')}</span>
                 <ChevronDown className="w-4 h-4" />
               </button>
 
@@ -219,7 +213,7 @@ const Navbar = memo(() => {
                     onChange={(e) => updateSearchTerm(e.target.value)}
                     onFocus={() => searchTerm.trim() && setIsSuggestionsOpen(true)}
                     onKeyDown={handleSearchKeyDown}
-                    placeholder="Search for electronics, gadgets..."
+                    placeholder={t('navbar.search_placeholder')}
                     className="w-full bg-white text-gray-900 text-sm rounded-full py-3 pl-4 pr-14 shadow-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   <button
@@ -255,7 +249,7 @@ const Navbar = memo(() => {
                     {cartCount}
                   </span>
                 )}
-                <span className="hidden lg:inline ml-2 text-xs font-semibold uppercase tracking-wide">Cart</span>
+                <span className="hidden lg:inline ml-2 text-xs font-semibold uppercase tracking-wide">{t('navbar.cart')}</span>
               </Link>
 
               <div className="relative">
@@ -269,10 +263,10 @@ const Navbar = memo(() => {
                 {settingsOpen && (
                   <div className="absolute right-0 mt-2 w-56 bg-white text-gray-900 shadow-xl rounded-xl border border-gray-100 overflow-hidden z-20">
                     <div className="px-4 py-3 border-b border-gray-100">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">{translations[language].settings}</p>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">{t('settings.title')}</p>
                     </div>
                     <div className="px-4 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">{translations[language].language}</p>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">{t('common.language')}</p>
                       <div className="mt-2 space-y-2">
                         {languageOptions.map((option) => (
                           <button
@@ -281,18 +275,18 @@ const Navbar = memo(() => {
                             onClick={() => setLanguage(option.code)}
                             className={`w-full text-left rounded-xl px-3 py-2 text-sm ${language === option.code ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-50'}`}
                           >
-                            {option.label}
+                            {t(option.labelKey)}
                           </button>
                         ))}
                       </div>
                     </div>
                     <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-700">{translations[language].darkMode}</span>
+                      <span className="text-sm font-semibold text-gray-700">{t('settings.dark_mode')}</span>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
                           checked={darkMode}
-                          onChange={() => setDarkMode((value) => !value)}
+                          onChange={toggleDarkMode}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-gray-200 rounded-full peer-focus:ring-4 peer-focus:ring-primary/30 peer-checked:bg-primary transition-colors"></div>
@@ -305,7 +299,7 @@ const Navbar = memo(() => {
 
               {isAuthenticated ? (
                 <div className="flex items-center space-x-1 sm:space-x-3">
-                   <Link to="#" className="p-2 hover:bg-white/10 rounded-full transition-colors hidden sm:block">
+                   <Link to="/wishlist" className="p-2 hover:bg-white/10 rounded-full transition-colors hidden sm:block">
                     <Heart className="w-6 h-6" />
                   </Link>
                   {profile?.is_admin && (
@@ -319,24 +313,24 @@ const Navbar = memo(() => {
                     </button>
                     <div className="absolute top-full right-0 w-48 bg-white shadow-xl rounded-md hidden group-hover:block border border-gray-100 py-2">
                       <div className="px-4 py-2 border-b border-gray-100 mb-2">
-                        <p className="text-xs text-gray-400">Welcome,</p>
+                        <p className="text-xs text-gray-400">{t('navbar.welcome')}</p>
                         <p className="text-sm font-bold text-gray-800 truncate">{profile?.full_name || profile?.email}</p>
                       </div>
-                      <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">Profile</Link>
+                      <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-primary">{t('navbar.profile')}</Link>
                       <button 
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
                       >
                         <LogOut className="w-4 h-4 mr-2" />
-                        Sign Out
+                        {t('navbar.signout')}
                       </button>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center space-x-2">
-                  <Link to="/login" className="text-xs font-bold uppercase tracking-widest px-4 py-2 hover:bg-white/10 rounded transition-colors">Login</Link>
-                  <Link to="/signup" className="bg-white text-primary px-4 py-2 rounded font-bold text-xs uppercase tracking-widest hover:bg-gray-100 transition-colors shadow-lg">Sign Up</Link>
+                  <Link to="/login" className="text-xs font-bold uppercase tracking-widest px-4 py-2 hover:bg-white/10 rounded transition-colors">{t('navbar.login')}</Link>
+                  <Link to="/signup" className="bg-white text-primary px-4 py-2 rounded font-bold text-xs uppercase tracking-widest hover:bg-gray-100 transition-colors shadow-lg">{t('navbar.signup')}</Link>
                 </div>
               )}
 
@@ -358,7 +352,7 @@ const Navbar = memo(() => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search..."
+                  placeholder={t('navbar.search_placeholder')}
                   className="w-full bg-gray-100 border-none rounded-md px-4 py-3 text-sm"
                 />
                 <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
@@ -366,24 +360,24 @@ const Navbar = memo(() => {
                 </button>
               </form>
               <div className="space-y-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Quick Links</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">{t('navbar.all_products')}</p>
                 <button 
                   onClick={() => handleCategoryClick(null)}
                   className="block w-full text-left px-2 py-2 text-sm font-semibold hover:text-primary"
                 >
-                  All Products
+                  {t('navbar.all_products')}
                 </button>
                 <Link 
                   to="/products?type=phone"
                   className="block w-full text-left px-2 py-2 text-sm font-semibold hover:text-primary"
                 >
-                  Điện thoại
+                  {t('navbar.phone_category')}
                 </Link>
                 <Link 
                   to="/products?type=laptop"
                   className="block w-full text-left px-2 py-2 text-sm font-semibold hover:text-primary"
                 >
-                  Laptop
+                  {t('navbar.laptop_category')}
                 </Link>
               </div>
             </div>

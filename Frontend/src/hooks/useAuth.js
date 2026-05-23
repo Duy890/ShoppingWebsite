@@ -33,23 +33,6 @@ export const useAuth = () => {
     };
 
     initAuth();
-
-    const { data: subscription } = authService.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        dispatch(setUser(session.user));
-        const userProfile = await authService.getProfile(session.user.id);
-        dispatch(setProfile(userProfile));
-      } else {
-        dispatch(logoutAction());
-        globalAuthInitialized = false;
-      }
-      dispatch(setLoading(false));
-      authRequestInProgress = false;
-    });
-
-    return () => {
-      subscription?.subscription?.unsubscribe();
-    };
   }, [dispatch]);
 
   const signIn = useCallback(async (email, password) => {

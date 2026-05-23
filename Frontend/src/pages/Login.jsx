@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthCard from '../components/auth/AuthCard';
@@ -68,9 +68,15 @@ const Login = () => {
             type="password"
             value={formData.password}
             onChange={handleChange}
-            placeholder="••••••••"
+            placeholder="******"
             required
           />
+
+          <div className="flex justify-end">
+            <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:text-orange-600 transition-colors">
+              Forgot password?
+            </Link>
+          </div>
 
           {errorMessage && (
             <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

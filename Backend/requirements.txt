@@ -7,4 +7,6 @@ pydantic==2.8.0
 pydantic-settings==2.8.0
 email-validator==2.3.0
 PyMySQL==1.1.0
+aiosmtplib==3.0.1
 openai==1.54.3
+requests==2.32.3
