@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
+import re
+import unicodedata
 
-from sqlalchemy import func, or_
+from sqlalchemy import extract, func, or_
 from sqlalchemy.orm import joinedload, Session
 
 from . import models
@@ -116,20 +118,35 @@ def set_default_address(db: Session, address: models.Address) -> models.Address:
 
 
 def get_categories(db: Session) -> list[models.Category]:
-    return db.query(models.Category).order_by(models.Category.name).all()
+    return db.query(models.Category).order_by(models.Category.level, models.Category.name).all()
 
 
 def get_categories_tree(db: Session) -> list[dict]:
-    categories = get_categories(db)
-    return [
-        {
-            "id": category.id,
-            "name": category.name,
-            "description": category.description,
+    all_cats = db.query(models.Category).order_by(
+        models.Category.level, models.Category.name
+    ).all()
+
+    nodes: dict[str, dict] = {}
+    for cat in all_cats:
+        nodes[cat.id] = {
+            "id": cat.id,
+            "name": cat.name,
+            "slug": cat.slug,
+            "description": cat.description,
+            "level": cat.level or 0,
+            "parent_id": cat.parent_id,
             "children": [],
         }
-        for category in categories
-    ]
+
+    roots: list[dict] = []
+    for cat in all_cats:
+        node = nodes[cat.id]
+        if cat.parent_id and cat.parent_id in nodes:
+            nodes[cat.parent_id]["children"].append(node)
+        else:
+            roots.append(node)
+
+    return roots
 
 
 TYPE_MAPPING = {
@@ -200,8 +217,60 @@ def get_search_suggestions(db: Session, query: str, limit: int = 8) -> list[dict
     return suggestions
 
 
-def create_category(db: Session, name: str, description: str | None = None) -> models.Category:
-    category = models.Category(name=name, description=description)
+def _slugify(text: str) -> str:
+    """Convert Vietnamese text to a stable ASCII slug."""
+    unicode_map = {
+        "a": "àáâãäåāăạảấầẩẫậắằẳẵặ",
+        "d": "đ",
+        "e": "èéêëēĕẹẻẽếềểễệ",
+        "i": "ìíîïīĭỉị",
+        "o": "òóôõöōŏọỏốồổỗộớờởỡợ",
+        "u": "ùúûüūŭụủứừửữự",
+        "y": "ỳýỷỹỵ",
+    }
+    result = text.lower().strip()
+    for ascii_char, unicode_chars in unicode_map.items():
+        for unicode_char in unicode_chars:
+            result = result.replace(unicode_char, ascii_char)
+    result = unicodedata.normalize("NFD", result)
+    result = re.sub(r"[\u0300-\u036f]", "", result)
+    result = re.sub(r"[^a-z0-9\s-]", "", result)
+    result = re.sub(r"[\s]+", "-", result.strip())
+    return result or "category"
+
+
+def create_category(
+    db: Session,
+    name: str,
+    description: str | None = None,
+    parent_id: str | None = None,
+) -> models.Category:
+    base_slug = _slugify(name)
+    slug = base_slug
+    counter = 1
+    while db.query(models.Category).filter(models.Category.slug == slug).first():
+        slug = f"{base_slug}-{counter}"
+        counter += 1
+
+    if parent_id:
+        parent = db.query(models.Category).filter(models.Category.id == parent_id).first()
+        if not parent:
+            raise ValueError("Parent category not found")
+        level = (parent.level or 0) + 1
+        parent_path = parent.path or parent.slug or parent.id
+        path = f"{parent_path}/{slug}"
+    else:
+        level = 0
+        path = slug
+
+    category = models.Category(
+        name=name,
+        description=description,
+        slug=slug,
+        parent_id=parent_id,
+        level=level,
+        path=path,
+    )
     db.add(category)
     db.commit()
     db.refresh(category)
@@ -286,6 +355,78 @@ def get_products(db: Session, category_id: str | None = None, search: str | None
 
 def get_product(db: Session, product_id: str) -> models.Product | None:
     return db.query(models.Product).options(joinedload(models.Product.category)).filter(models.Product.id == product_id).first()
+
+
+def increment_view_count(db: Session, product_id: str) -> None:
+    db.query(models.Product).filter(
+        models.Product.id == product_id
+    ).update(
+        {models.Product.view_count: models.Product.view_count + 1},
+        synchronize_session=False,
+    )
+    db.commit()
+
+
+def log_search(
+    db: Session,
+    query: str,
+    user_id: str | None = None,
+    results_count: int = 0,
+) -> None:
+    if not query or len(query.strip()) < 2:
+        return
+    entry = models.SearchLog(
+        user_id=user_id,
+        query=query.strip().lower(),
+        results_count=results_count,
+    )
+    db.add(entry)
+    db.commit()
+
+
+def get_top_searches(db: Session, limit: int = 20) -> list[dict]:
+    from sqlalchemy import func
+    rows = (
+        db.query(
+            models.SearchLog.query,
+            func.count(models.SearchLog.id).label("count"),
+        )
+        .filter(
+            models.SearchLog.created_at >= datetime.utcnow().replace(
+                hour=0, minute=0, second=0
+            )
+        )
+        .group_by(models.SearchLog.query)
+        .order_by(func.count(models.SearchLog.id).desc())
+        .limit(limit)
+        .all()
+    )
+    return [{"query": r.query, "count": r.count} for r in rows]
+
+
+def get_brands_by_category(db: Session, category_id: str | None = None) -> list[str]:
+    query = db.query(models.Product.brand).filter(models.Product.brand != None)
+
+    if category_id:
+        is_uuid = False
+        try:
+            uuid.UUID(category_id)
+            is_uuid = True
+        except ValueError:
+            is_uuid = False
+
+        if is_uuid:
+            query = query.filter(models.Product.category_id == category_id)
+        else:
+            category = db.query(models.Category).filter(models.Category.slug == category_id).first()
+            if category:
+                all_category_ids = _get_all_category_ids(db, category.id)
+                query = query.join(models.Category).filter(models.Category.id.in_(all_category_ids))
+            else:
+                return []
+
+    brands = query.distinct().order_by(models.Product.brand).all()
+    return [brand for (brand,) in brands if brand]
 
 
 def create_product(db: Session, product_data: dict) -> models.Product:
@@ -413,15 +554,26 @@ def get_reviews_by_product(db: Session, product_id: str) -> list[models.Review]:
 
 
 def create_review(db: Session, user_id: str, product_id: str, rating: int, comment: str | None) -> models.Review:
-    review = models.Review(
-        user_id=user_id,
-        product_id=product_id,
-        rating=rating,
-        comment=comment
-    )
-    db.add(review)
-    db.commit()
-    db.refresh(review)
+    existing = db.query(models.Review).filter(
+        models.Review.user_id == user_id,
+        models.Review.product_id == product_id
+    ).first()
+    if existing:
+        existing.rating = rating
+        existing.comment = comment
+        db.commit()
+        db.refresh(existing)
+        review = existing
+    else:
+        review = models.Review(
+            user_id=user_id,
+            product_id=product_id,
+            rating=rating,
+            comment=comment
+        )
+        db.add(review)
+        db.commit()
+        db.refresh(review)
 
     # Update product rating and count
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
@@ -429,11 +581,61 @@ def create_review(db: Session, user_id: str, product_id: str, rating: int, comme
         all_ratings = db.query(models.Review.rating).filter(models.Review.product_id == product_id).all()
         ratings = [r[0] for r in all_ratings]
         product.review_count = len(ratings)
-        product.rating = sum(ratings) / len(ratings)
+        product.rating = sum(ratings) / len(ratings) if ratings else 0.0
         db.add(product)
         db.commit()
 
     return review
+
+
+def get_wishlist(db: Session, user_id: str) -> list[models.Wishlist]:
+    return (
+        db.query(models.Wishlist)
+        .options(joinedload(models.Wishlist.product))
+        .filter(models.Wishlist.user_id == user_id)
+        .order_by(models.Wishlist.created_at.desc())
+        .all()
+    )
+
+
+def is_in_wishlist(db: Session, user_id: str, product_id: str) -> bool:
+    return db.query(models.Wishlist).filter(
+        models.Wishlist.user_id == user_id,
+        models.Wishlist.product_id == product_id
+    ).first() is not None
+
+
+def add_to_wishlist(db: Session, user_id: str, product_id: str) -> models.Wishlist:
+    existing = db.query(models.Wishlist).filter(
+        models.Wishlist.user_id == user_id,
+        models.Wishlist.product_id == product_id
+    ).first()
+    if existing:
+        return existing
+    item = models.Wishlist(user_id=user_id, product_id=product_id)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+def remove_from_wishlist(db: Session, user_id: str, product_id: str) -> bool:
+    item = db.query(models.Wishlist).filter(
+        models.Wishlist.user_id == user_id,
+        models.Wishlist.product_id == product_id
+    ).first()
+    if not item:
+        return False
+    db.delete(item)
+    db.commit()
+    return True
+
+
+def get_wishlist_product_ids(db: Session, user_id: str) -> list[str]:
+    rows = db.query(models.Wishlist.product_id).filter(
+        models.Wishlist.user_id == user_id
+    ).all()
+    return [r[0] for r in rows]
 
 
 def get_or_create_cart(db: Session, user_id: str) -> models.Cart:
@@ -589,6 +791,52 @@ def get_order_count(db: Session) -> int:
 
 def get_total_revenue(db: Session) -> float:
     return db.query(func.coalesce(func.sum(models.Order.total_amount), 0.0)).scalar() or 0.0
+
+
+def get_revenue_by_month(db: Session) -> list[dict]:
+    """Revenue for each month in the current year."""
+    current_year = datetime.utcnow().year
+    rows = (
+        db.query(
+            extract("month", models.Order.created_at).label("month_num"),
+            func.coalesce(func.sum(models.Order.total_amount), 0.0).label("revenue"),
+        )
+        .filter(
+            extract("year", models.Order.created_at) == current_year,
+            models.Order.status.notin_(["cancelled", "payment_failed"]),
+        )
+        .group_by("month_num")
+        .order_by("month_num")
+        .all()
+    )
+    month_map = {int(row.month_num): float(row.revenue) for row in rows}
+    return [
+        {"month": f"T{month}", "revenue": month_map.get(month, 0.0)}
+        for month in range(1, 13)
+    ]
+
+
+def get_revenue_by_year(db: Session) -> list[dict]:
+    """Revenue for the latest five years."""
+    current_year = datetime.utcnow().year
+    rows = (
+        db.query(
+            extract("year", models.Order.created_at).label("year_num"),
+            func.coalesce(func.sum(models.Order.total_amount), 0.0).label("revenue"),
+        )
+        .filter(
+            extract("year", models.Order.created_at) >= current_year - 4,
+            models.Order.status.notin_(["cancelled", "payment_failed"]),
+        )
+        .group_by("year_num")
+        .order_by("year_num")
+        .all()
+    )
+    year_map = {int(row.year_num): float(row.revenue) for row in rows}
+    return [
+        {"year": str(year), "revenue": year_map.get(year, 0.0)}
+        for year in range(current_year - 4, current_year + 1)
+    ]
 
 
 def create_order_status_history(db: Session, order_id: str, old_status: str | None, new_status: str, note: str | None = None, changed_by: str | None = None) -> models.OrderStatusHistory:

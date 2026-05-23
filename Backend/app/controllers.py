@@ -2,15 +2,27 @@ from pathlib import Path
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from . import chat_service, models, schemas, services
+from . import chat_service, models, repositories, schemas, services
+from .core.config import settings
 from .core.database import get_db
-from .core.security import create_access_token, decode_access_token
+from .core.security import create_access_token, decode_access_token, verify_password, hash_password
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
+
+def get_optional_user(
+    token: str = Depends(oauth2_scheme_optional),
+    db: Session = Depends(get_db),
+) -> models.User | None:
+    try:
+        return get_current_user(token, db)
+    except Exception:
+        return None
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
     user_id = decode_access_token(token)
@@ -29,6 +41,7 @@ def require_admin(user: models.User) -> None:
 
 UPLOAD_DIR = Path(__file__).resolve().parent / "static" / "images"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+MAX_IMAGE_SIZE = 5 * 1024 * 1024
 
 def build_image_url(filename: str, request: Request) -> str:
     base_url = str(request.base_url).rstrip('/')
@@ -44,10 +57,16 @@ def upload_image(request: Request, file: UploadFile = File(...), current_user: m
     extension = Path(file.filename).suffix or ".jpg"
     filename = f"{uuid.uuid4().hex}{extension}"
     file_path = UPLOAD_DIR / filename
+    file_bytes = file.file.read()
+    if len(file_bytes) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large. Maximum size is 5MB.",
+        )
 
     try:
         with file_path.open("wb") as buffer:
-            buffer.write(file.file.read())
+            buffer.write(file_bytes)
     except OSError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to save uploaded image") from exc
 
@@ -62,10 +81,16 @@ def upload_avatar(request: Request, file: UploadFile = File(...), current_user: 
     extension = Path(file.filename).suffix or ".jpg"
     filename = f"avatar_{current_user.id}_{uuid.uuid4().hex}{extension}"
     file_path = UPLOAD_DIR / filename
+    file_bytes = file.file.read()
+    if len(file_bytes) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large. Maximum size is 5MB.",
+        )
 
     try:
         with file_path.open("wb") as buffer:
-            buffer.write(file.file.read())
+            buffer.write(file_bytes)
     except OSError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to save uploaded avatar") from exc
 
@@ -97,6 +122,121 @@ def login(payload: schemas.UserCreate, db: Session = Depends(get_db)):
 @router.get("/auth/me", response_model=schemas.UserResponse)
 def read_current_user(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+
+@router.post("/auth/forgot-password")
+async def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Send a real password reset email to the user.
+    Always returns 200 to avoid user enumeration.
+    """
+    try:
+        await services.create_reset_token_and_send_email(db, payload.email)
+    except ValueError:
+        pass  # Don't reveal whether the email exists
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Email sending failed: {str(e)}")
+    return {"message": "If this email is registered, a reset link has been sent."}
+
+
+@router.post("/auth/reset-password")
+def reset_password(payload: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        services.reset_password(db, payload.token, payload.new_password)
+        return {"message": "Password reset successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/auth/request-email-change")
+async def request_email_change(
+    payload: schemas.EmailChangeRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Send a verification link to the new email address."""
+    try:
+        await services.create_email_change_token_and_send(db, current_user, payload.new_email)
+        return {"message": "Verification email sent to the new address."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Email sending failed: {str(e)}")
+
+
+@router.get("/auth/verify-email-change")
+def verify_email_change(token: str, db: Session = Depends(get_db)):
+    """
+    Called when user clicks the link in their email.
+    Applies the email change and redirects to the profile page.
+    """
+    try:
+        services.confirm_email_change(db, token)
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/profile?email_changed=1")
+    except ValueError:
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/profile?email_error=1")
+
+
+@router.post("/auth/change-password")
+def change_password(
+    payload: schemas.ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "Password changed successfully"}
+
+
+@router.post("/payment/momo/create", response_model=schemas.MoMoPaymentResponse)
+def create_momo_payment(
+    payload: schemas.MoMoPaymentRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        result = services.create_momo_payment(
+            amount=payload.amount,
+            order_id=payload.order_id,
+            order_info=payload.order_info,
+        )
+        return schemas.MoMoPaymentResponse(
+            pay_url=result.get("payUrl", ""),
+            result_code=result.get("resultCode", 0),
+            message=result.get("message", ""),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+@router.post("/payment/momo/ipn")
+def momo_ipn(payload: schemas.MoMoIPNPayload, db: Session = Depends(get_db)):
+    payload_dict = payload.dict()
+
+    if not services.verify_momo_ipn_signature(payload_dict):
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    order_id = payload.orderId
+
+    try:
+        if payload.resultCode == 0:
+            services.update_order_status_with_history(
+                db, order_id, "confirmed", "MoMo payment successful", None
+            )
+        else:
+            services.update_order_status_with_history(
+                db, order_id, "payment_failed", f"MoMo: {payload.message}", None
+            )
+    except Exception as e:
+        print(f"IPN processing error: {e}")
+
+    return {"status": "ok"}
 
 
 @router.put("/users/me", response_model=schemas.UserResponse)
@@ -168,7 +308,10 @@ def read_search_suggestions(q: str | None = None, db: Session = Depends(get_db))
 @router.post("/categories", response_model=schemas.CategoryRead)
 def create_category(payload: schemas.CategoryCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_admin(current_user)
-    return services.create_category(db, payload.name, payload.description)
+    try:
+        return services.create_category(db, payload.name, payload.description, payload.parent_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -193,16 +336,24 @@ def read_products(
     page: int = 1,
     limit: int = 12,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_optional_user),
 ):
     page = max(1, page)
     limit = min(max(1, limit), 100)
-    return services.get_products(db, category, search, featured, sortBy, product_type, brand, page, limit)
+    result = services.get_products(db, category, search, featured, sortBy, product_type, brand, page, limit)
+    if search and search.strip():
+        user_id = current_user.id if current_user else None
+        products_list = result.get("items", [])
+        repositories.log_search(db, search, user_id, len(products_list))
+    return result
 
 
 @router.get("/products/{product_id}", response_model=schemas.ProductRead)
 def read_product(product_id: str, db: Session = Depends(get_db)):
     try:
-        return services.get_product(db, product_id)
+        product = services.get_product(db, product_id)
+        repositories.increment_view_count(db, product_id)
+        return product
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
@@ -267,6 +418,33 @@ def read_product_reviews(product_id: str, db: Session = Depends(get_db)):
 def create_product_review(product_id: str, payload: schemas.ReviewCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         return services.create_review(db, current_user.id, product_id, payload.rating, payload.comment)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.get("/wishlist", response_model=schemas.WishlistRead)
+def read_wishlist(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    items = services.get_wishlist(db, current_user.id)
+    return {"items": items}
+
+
+@router.get("/wishlist/ids", response_model=list[str])
+def read_wishlist_ids(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return services.get_wishlist_product_ids(db, current_user.id)
+
+
+@router.post("/wishlist/{product_id}", status_code=status.HTTP_201_CREATED)
+def add_wishlist(product_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        return services.add_to_wishlist(db, current_user.id, product_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+
+@router.delete("/wishlist/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_wishlist(product_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        services.remove_from_wishlist(db, current_user.id, product_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
@@ -467,7 +645,117 @@ def admin_stats(current_user: models.User = Depends(get_current_user), db: Sessi
     return services.get_admin_stats(db)
 
 
-@router.get("/admin/stats", response_model=schemas.AdminStats)
-def admin_stats(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+@router.get("/admin/revenue/monthly")
+def revenue_monthly(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_admin(current_user)
-    return services.get_admin_stats(db)
+    return services.get_revenue_by_month(db)
+
+
+@router.get("/admin/revenue/yearly")
+def revenue_yearly(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    require_admin(current_user)
+    return services.get_revenue_by_year(db)
+
+
+# --- Recommendations ---
+
+@router.get("/recommendations", response_model=schemas.RecommendationResponse)
+def get_recommendations(
+    limit: int = 8,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_optional_user),
+):
+    user_id = current_user.id if current_user else None
+    items = services.get_recommendations(db, user_id=user_id, limit=limit)
+    strategy = "personalized" if user_id else "popular"
+    return {"items": items, "strategy": strategy}
+
+
+@router.get("/products/{product_id}/similar", response_model=schemas.RecommendationResponse)
+def get_similar_products(
+    product_id: str,
+    limit: int = 6,
+    db: Session = Depends(get_db),
+):
+    items = services.get_similar_products(db, product_id=product_id, limit=limit)
+    return {"items": items, "strategy": "similar"}
+
+
+@router.get("/cart/recommendations", response_model=schemas.RecommendationResponse)
+def get_cart_recommendations(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    items = services.get_cart_recommendations(db, user_id=current_user.id, limit=4)
+    return {"items": items, "strategy": "co_purchase"}
+
+
+# --- Admin Analytics ---
+
+@router.get("/admin/analytics/top-searches")
+def top_searches(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_admin(current_user)
+    return repositories.get_top_searches(db, limit=20)
+
+
+@router.get("/admin/analytics/top-viewed")
+def top_viewed_products(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_admin(current_user)
+    products = (
+        db.query(models.Product)
+        .filter(models.Product.status == "active")
+        .order_by(models.Product.view_count.desc())
+        .limit(10)
+        .all()
+    )
+    return [
+        {"id": p.id, "name": p.name, "view_count": p.view_count,
+         "rating": p.rating, "price": p.price}
+        for p in products
+    ]
+
+
+@router.get("/admin/analytics/cart-abandonment")
+def cart_abandonment(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_admin(current_user)
+    from sqlalchemy import func
+    rows = (
+        db.query(
+            models.CartItem.product_id,
+            func.count(models.CartItem.id).label("cart_count"),
+        )
+        .group_by(models.CartItem.product_id)
+        .order_by(func.count(models.CartItem.id).desc())
+        .limit(10)
+        .all()
+    )
+    result = []
+    for r in rows:
+        p = db.query(models.Product).filter(
+            models.Product.id == r.product_id
+        ).first()
+        order_count = (
+            db.query(func.count(models.OrderItem.id))
+            .filter(models.OrderItem.product_id == r.product_id)
+            .scalar() or 0
+        )
+        if p:
+            result.append({
+                "id": p.id,
+                "name": p.name,
+                "cart_count": r.cart_count,
+                "order_count": order_count,
+                "abandonment_rate": round(
+                    (r.cart_count - order_count) / r.cart_count * 100, 1
+                ) if r.cart_count > 0 else 0,
+            })
+    return result

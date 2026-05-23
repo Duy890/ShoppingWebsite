@@ -64,7 +64,11 @@ export const productService = {
   },
 
   async createCategory(category) {
-    const { data } = await api.post('/categories', category);
+    const { data } = await api.post('/categories', {
+      name: category.name,
+      description: category.description || null,
+      parent_id: category.parent_id || null,
+    });
     return data;
   },
 
@@ -121,6 +125,14 @@ export const productService = {
     return this._navCategoriesPromise;
   },
 
+  async getNavigationBrands(category) {
+    const params = {};
+    if (category) params.category = category;
+
+    const { data } = await api.get('/navigation/brands', { params });
+    return data;
+  },
+
   _navTreeCache: null,
   _navTreePromise: null,
 
@@ -140,5 +152,39 @@ export const productService = {
       });
 
     return this._navTreePromise;
+  },
+
+  async getWishlist() {
+    const { data } = await api.get('/wishlist');
+    return data;
+  },
+
+  async getWishlistIds() {
+    const { data } = await api.get('/wishlist/ids');
+    return data;
+  },
+
+  async addToWishlist(productId) {
+    const { data } = await api.post(`/wishlist/${productId}`);
+    return data;
+  },
+
+  async removeFromWishlist(productId) {
+    await api.delete(`/wishlist/${productId}`);
+  },
+
+  async getRecommendations(limit = 8) {
+    const { data } = await api.get('/recommendations', { params: { limit } });
+    return data;
+  },
+
+  async getSimilarProducts(productId, limit = 6) {
+    const { data } = await api.get(`/products/${productId}/similar`, { params: { limit } });
+    return data;
+  },
+
+  async getCartRecommendations() {
+    const { data } = await api.get('/cart/recommendations');
+    return data;
   },
 };

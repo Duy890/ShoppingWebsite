@@ -1,30 +1,38 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
-import { aiService } from '../services/aiService';
+import { productService } from '../services/productService';
 
 export const useRecommend = (productId = null) => {
   const [recommendations, setRecommendations] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [strategy, setStrategy] = useState('popular');
+  const [loading, setLoading] = useState(true);
   const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    loadRecommendations();
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        let data;
+        if (productId) {
+          data = await productService.getSimilarProducts(productId);
+        } else {
+          data = await productService.getRecommendations(8);
+        }
+        if (!cancelled) {
+          setRecommendations(data.items || []);
+          setStrategy(data.strategy || 'popular');
+        }
+      } catch (err) {
+        console.error('Recommendation error:', err);
+        if (!cancelled) setRecommendations([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
   }, [user?.id, productId]);
 
-  const loadRecommendations = async () => {
-    try {
-      setLoading(true);
-      const data = await aiService.getRecommendations(user?.id, productId);
-      setRecommendations(data);
-    } catch (error) {
-      console.error('Error loading recommendations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return {
-    recommendations,
-    loading,
-  };
+  return { recommendations, strategy, loading };
 };

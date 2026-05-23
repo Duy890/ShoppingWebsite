@@ -1,17 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { productService } from '../services/productService';
 
 const WishlistButton = ({ productId, className = '' }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [isSaved, setIsSaved] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !productId) return;
+    let cancelled = false;
+
+    const checkStatus = async () => {
+      setCheckingStatus(true);
+      try {
+        const ids = await productService.getWishlistIds();
+        if (!cancelled) setIsSaved(ids.includes(productId));
+      } catch (err) {
+        console.error('Error checking wishlist status:', err);
+      } finally {
+        if (!cancelled) setCheckingStatus(false);
+      }
+    };
+
+    checkStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, productId]);
 
   const handleWishlist = async (e) => {
     e.preventDefault();
     if (!isAuthenticated) {
-      alert('Please sign in to save items');
+      toast.error('Please sign in to save items');
       return;
     }
 
@@ -26,7 +50,7 @@ const WishlistButton = ({ productId, className = '' }) => {
       }
     } catch (error) {
       console.error('Error updating wishlist:', error);
-      alert('Error updating wishlist');
+      toast.error('Error updating wishlist');
     } finally {
       setLoading(false);
     }
@@ -35,7 +59,7 @@ const WishlistButton = ({ productId, className = '' }) => {
   return (
     <button
       onClick={handleWishlist}
-      disabled={loading}
+      disabled={loading || checkingStatus}
       className={`p-2 rounded-lg border transition ${
         isSaved
           ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'

@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, MapPin } from 'lucide-react';
 
 const Footer = () => {
+  const { t } = useTranslation();
   return (
     <footer className="bg-gray-900 text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -13,8 +15,7 @@ const Footer = () => {
               e-shop.
             </Link>
             <p className="text-sm leading-relaxed text-gray-400">
-              Elevate your tech lifestyle with the latest in electronics and gadgets. 
-              Quality products, unbeatable prices, and lightning-fast delivery.
+              {t('footer.description')}
             </p>
             <div className="flex space-x-4">
               <Link to="#" className="hover:text-primary transition-colors"><Facebook className="w-5 h-5" /></Link>
@@ -26,35 +27,35 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">Shop</h3>
+            <h3 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">{t('footer.shop')}</h3>
             <ul className="space-y-4 text-sm">
-              <li><Link to="/products" className="hover:text-primary transition-colors">All Products</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Laptops & PCs</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Smartphones</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Audio & Video</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Accessories</Link></li>
+              <li><Link to="/products" className="hover:text-primary transition-colors">{t('footer.all_products')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.laptops')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.smartphones')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.audio')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.accessories')}</Link></li>
             </ul>
           </div>
 
           {/* Customer Service */}
           <div>
-            <h3 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">Service</h3>
+            <h3 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">{t('footer.service')}</h3>
             <ul className="space-y-4 text-sm">
-              <li><Link to="#" className="hover:text-primary transition-colors">FAQ</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Shipping Policy</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Returns & Refunds</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-              <li><Link to="#" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.faq')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.shipping_policy')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.returns')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.privacy')}</Link></li>
+              <li><Link to="#" className="hover:text-primary transition-colors">{t('footer.terms')}</Link></li>
             </ul>
           </div>
 
           {/* Contact Info */}
           <div>
-            <h3 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">Contact</h3>
+            <h3 className="text-white font-bold text-lg mb-6 uppercase tracking-wider">{t('footer.contact')}</h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-start space-x-3">
                 <MapPin className="w-5 h-5 text-primary shrink-0" />
-                <span>123 Tech Avenue, Silicon Valley, CA 94025</span>
+                <span>{t('footer.address')}</span>
               </li>
               <li className="flex items-center space-x-3">
                 <Phone className="w-5 h-5 text-primary shrink-0" />
@@ -69,11 +70,11 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-gray-800 mt-16 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 gap-4">
-          <p>&copy; {new Date().getFullYear()} e-shop. Electronics Store. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} e-shop. Electronics Store. {t('footer.rights')}</p>
           <div className="flex space-x-6">
-            <Link to="#" className="hover:text-gray-300">Privacy</Link>
-            <Link to="#" className="hover:text-gray-300">Terms</Link>
-            <Link to="#" className="hover:text-gray-300">Cookies</Link>
+            <Link to="#" className="hover:text-gray-300">{t('footer.privacy_short')}</Link>
+            <Link to="#" className="hover:text-gray-300">{t('footer.terms_short')}</Link>
+            <Link to="#" className="hover:text-gray-300">{t('footer.cookies')}</Link>
           </div>
         </div>
       </div>

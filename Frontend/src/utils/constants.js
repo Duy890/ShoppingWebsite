@@ -31,6 +31,7 @@ export const PAYMENT_METHODS = {
   DEBIT_CARD: 'debit_card',
   PAYPAL: 'paypal',
   CASH_ON_DELIVERY: 'cash_on_delivery',
+  MOMO: 'momo',
 };
 
 export const PAYMENT_METHOD_LABELS = {
@@ -38,6 +39,7 @@ export const PAYMENT_METHOD_LABELS = {
   debit_card: 'Debit Card',
   paypal: 'PayPal',
   cash_on_delivery: 'Cash on Delivery',
+  momo: 'Ví MoMo',
 };
 
 export const SHIPPING_METHODS = {

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..core.database import SessionLocal
 from ..models import Product
-from .. import models
+from .. import models, services
 from typing import List, Dict
 
 router = APIRouter(prefix="/navigation", tags=["navigation"])
@@ -168,3 +168,12 @@ async def get_navigation_categories(db: Session = Depends(get_db)):
         final_data.append(item)
         
     return final_data
+
+
+@router.get("/brands")
+async def get_navigation_brands(category: str | None = None, db: Session = Depends(get_db)):
+    """
+    Returns distinct list of brands for the selected category.
+    If no category is provided, returns all brands.
+    """
+    return services.get_brands_by_category(db, category)

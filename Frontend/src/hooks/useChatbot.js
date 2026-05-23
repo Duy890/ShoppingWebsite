@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { aiService } from '../services/aiService';
 
 const STORAGE_KEY = 'shop_chatbot_messages';
+const SESSION_KEY = 'chat_session_id';
 
 const createMessage = (role, content, metadata = {}) => ({
   id: crypto.randomUUID(),
@@ -34,20 +35,18 @@ const loadStoredMessages = () => {
 export const useChatbot = () => {
   const [messages, setMessages] = useState(loadStoredMessages);
   const [loading, setLoading] = useState(false);
+  const sessionId = useRef(
+    localStorage.getItem(SESSION_KEY) ||
+      (() => {
+        const id = Math.random().toString(36).slice(2);
+        localStorage.setItem(SESSION_KEY, id);
+        return id;
+      })()
+  );
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
   }, [messages]);
-
-  const chatHistory = useMemo(
-    () =>
-      messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-        createdAt: message.createdAt,
-      })),
-    [messages]
-  );
 
   const sendMessage = async (content) => {
     const trimmed = content.trim();
@@ -59,7 +58,7 @@ export const useChatbot = () => {
 
     try {
       const response = await aiService.sendChatMessage(trimmed, {
-        history: [...chatHistory, userMessage],
+        sessionId: sessionId.current,
       });
 
       const assistantMessage = createMessage('assistant', response.message, {
@@ -86,6 +85,9 @@ export const useChatbot = () => {
   };
 
   const clearMessages = () => {
+    const id = Math.random().toString(36).slice(2);
+    localStorage.setItem(SESSION_KEY, id);
+    sessionId.current = id;
     setMessages(initialMessages);
   };
 

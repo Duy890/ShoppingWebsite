@@ -4,6 +4,45 @@ from typing import Any, List, Literal, Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class EmailChangeRequest(BaseModel):
+    new_email: EmailStr
+
+class MoMoPaymentRequest(BaseModel):
+    order_id: str
+    amount: int
+    order_info: str
+
+class MoMoPaymentResponse(BaseModel):
+    pay_url: str
+    result_code: int
+    message: str
+
+class MoMoIPNPayload(BaseModel):
+    partnerCode: str
+    orderId: str
+    requestId: str
+    amount: int
+    orderInfo: str
+    orderType: str
+    transId: int
+    resultCode: int
+    message: str
+    payType: str
+    responseTime: int
+    extraData: str
+    signature: str
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -43,11 +82,14 @@ class CategoryBase(BaseModel):
 
 
 class CategoryCreate(CategoryBase):
-    pass
+    parent_id: Optional[str] = None
 
 
 class CategoryRead(CategoryBase):
     id: str
+    slug: Optional[str] = None
+    level: Optional[int] = 0
+    parent_id: Optional[str] = None
     created_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
@@ -55,6 +97,9 @@ class CategoryRead(CategoryBase):
 
 class CategoryTreeRead(CategoryBase):
     id: str
+    slug: Optional[str] = None
+    level: Optional[int] = 0
+    parent_id: Optional[str] = None
     children: list["CategoryTreeRead"] = []
 
     model_config = {"from_attributes": True}
@@ -73,7 +118,8 @@ class SearchSuggestionRead(BaseModel):
 
 class ChatRequest(BaseModel):
     message: str
-    history: List[dict[str, Any]] = []
+    history: List[dict[str, Any]] = Field(default_factory=list)
+    session_id: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
@@ -136,6 +182,18 @@ class ProductRead(ProductBase):
     variants: List["ProductVariantRead"] = []
 
     model_config = {"from_attributes": True}
+
+
+class WishlistItemRead(BaseModel):
+    id: str
+    product: ProductRead
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class WishlistRead(BaseModel):
+    items: list[WishlistItemRead]
 
 
 class ReviewBase(BaseModel):
@@ -391,6 +449,22 @@ class AdminStats(BaseModel):
     total_orders: int
     total_revenue: float
     total_users: int
+
+
+class RecommendationItem(BaseModel):
+    id: str
+    name: str
+    price: float
+    image_url: Optional[str] = None
+    brand: Optional[str] = None
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
+    product_type: Optional[str] = None
+
+
+class RecommendationResponse(BaseModel):
+    items: list[RecommendationItem]
+    strategy: str
 
 
 TokenWithUser.update_forward_refs()

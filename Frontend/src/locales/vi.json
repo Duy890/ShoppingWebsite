@@ -6,6 +6,8 @@
     "categories": "Danh mục",
     "all_products": "Tất cả sản phẩm",
     "search_placeholder": "Tìm kiếm điện tử, phụ kiện...",
+    "phone_category": "Điện thoại",
+    "laptop_category": "Laptop",
     "cart": "Giỏ hàng",
     "login": "Đăng nhập",
     "signup": "Đăng ký",
@@ -17,6 +19,20 @@
     "english": "Tiếng Anh",
     "vietnamese": "Tiếng Việt",
     "language": "Ngôn ngữ"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "dark_mode": "Chế độ tối"
+  },
+  "search_suggestions": {
+    "title": "Gợi ý",
+    "close": "Đóng",
+    "loading": "Đang tải gợi ý…",
+    "no_suggestions": "Không tìm thấy gợi ý",
+    "no_suggestions_help": "Hãy thử từ khoá rộng hơn như điện thoại, laptop hoặc tai nghe.",
+    "no_suggestions_action": "Nhấn Enter để tìm tất cả sản phẩm",
+    "start_typing_title": "Bắt đầu gõ để xem trước sản phẩm và danh mục",
+    "start_typing_desc": "Tìm kiếm theo tên sản phẩm, thương hiệu hoặc danh mục."
   },
   "home": {
     "hero": {
@@ -108,6 +124,9 @@
     "address_placeholder": "Nhập địa chỉ giao hàng đầy đủ của bạn...",
     "payment_method": "Phương thức thanh toán",
     "protection_text": "Giao dịch của bạn được bảo mật. Chúng tôi sử dụng mã hóa tiêu chuẩn ngành để đảm bảo dữ liệu của bạn an toàn và riêng tư. Bằng cách nhấp vào \"Hoàn tất mua hàng\", bạn đồng ý với Điều khoản dịch vụ của chúng tôi.",
+    "shipping_method": "Phương thức vận chuyển",
+    "order_note": "Ghi chú đơn hàng",
+    "note_placeholder": "Hướng dẫn giao hàng thêm (tuỳ chọn)...",
     "processing": "Đang xử lý giao dịch...",
     "complete_purchase": "Hoàn tất mua hàng",
     "order_summary": "Tóm tắt đơn hàng",
@@ -115,6 +134,12 @@
     "subtotal": "Tạm tính",
     "shipping": "Vận chuyển",
     "total": "Tổng cộng",
+    "empty_cart_error": "Giỏ hàng của bạn đang trống.",
+    "select_address_error": "Vui lòng chọn địa chỉ giao hàng.",
+    "select_payment_method_error": "Vui lòng chọn phương thức thanh toán.",
+    "select_shipping_method_error": "Vui lòng chọn phương thức vận chuyển.",
+    "momo_redirect": "Đang chuyển đến MoMo...",
+    "momo_order_description": "Thanh toán đơn hàng #{{orderId}}",
     "success_message": "Đặt hàng thành công!",
     "payment_methods": {
       "credit_card": "Thẻ tín dụng",
@@ -122,6 +147,18 @@
       "paypal": "PayPal",
       "cash_on_delivery": "Thanh toán khi nhận hàng"
     }
+  },
+  "search_results": {
+    "section_title": "Kết quả tìm kiếm",
+    "results_for": "Kết quả cho “{{query}}”",
+    "search_everything": "Tìm kiếm mọi thứ",
+    "query_description": "Khám phá các sản phẩm phù hợp trên nhiều danh mục và thương hiệu.",
+    "default_description": "Sử dụng thanh tìm kiếm ở trên để tìm sản phẩm, danh mục và công nghệ thịnh hành.",
+    "error_loading": "Không thể tải kết quả tìm kiếm vào lúc này.",
+    "no_results_title": "Không tìm thấy kết quả tìm kiếm",
+    "no_results_desc": "Thử từ khoá rộng hơn hoặc duyệt qua một danh mục.",
+    "browse_all_products": "Duyệt tất cả sản phẩm",
+    "explore_popular_items": "Khám phá sản phẩm phổ biến"
   },
   "products": {
     "catalogue_badge": "Danh mục",
@@ -131,6 +168,17 @@
     "categories": "Danh mục",
     "all_products": "Tất cả sản phẩm",
     "sort_by": "Sắp xếp theo",
+    "member_special": "Ưu đãi thành viên",
+    "member_special_title": "Giảm 20%",
+    "member_special_desc": "Cho tất cả phụ kiện laptop dành cho hội viên cao cấp.",
+    "join_now": "Tham gia ngay",
+    "failed_to_load": "Tải sản phẩm thất bại",
+    "retry": "Thử lại",
+    "prev": "Trước",
+    "next": "Tiếp",
+    "page_label": "Trang {{current}} trên {{total}}",
+    "page_placeholder": "Trang #",
+    "go": "Đi",
     "newest_first": "Mới nhất",
     "price_low_high": "Giá: Thấp đến Cao",
     "alphabetical": "Bảng chữ cái",
@@ -154,6 +202,8 @@
     "free_delivery": "Giao hàng miễn phí",
     "returns_policy": "Đổi trả trong 30 ngày",
     "specifications": "Thông số kỹ thuật",
+    "description_tab": "Mô tả sản phẩm",
+    "description_missing": "Chưa có mô tả chi tiết cho sản phẩm này.",
     "model_name": "Tên model",
     "brand": "Thương hiệu",
     "sku": "SKU",
@@ -175,5 +225,13 @@
     "review_success_alert": "Đã gửi đánh giá thành công!",
     "product_not_found": "Không tìm thấy sản phẩm",
     "back_to_catalog": "Quay lại danh mục"
+  },
+  "payment_result": {
+    "success_title": "Thanh toán thành công!",
+    "order_confirmed": "Đơn hàng #{{order}} đã được xác nhận.",
+    "failed_title": "Thanh toán thất bại",
+    "failed_message": "Giao dịch không thành công. Vui lòng thử lại.",
+    "view_orders": "Xem đơn hàng của tôi",
+    "back_home": "Về trang chủ"
   }
 }

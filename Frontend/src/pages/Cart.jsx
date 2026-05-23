@@ -1,11 +1,29 @@
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ShoppingBag, ArrowRight, Minus, Plus } from 'lucide-react';
 import { formatPrice } from '../utils/formatPrice';
 import { useCart } from '../hooks/useCart';
+import { productService } from '../services/productService';
+import ProductCard from '../components/ProductCard';
 
 const Cart = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { items, cartTotal, updateItem, removeItem, loading } = useCart();
+  const [cartRecs, setCartRecs] = useState([]);
+  const [cartRecsLoading, setCartRecsLoading] = useState(false);
+  const { isAuthenticated } = useSelector(state => state.auth);
+
+  useEffect(() => {
+    if (!isAuthenticated || items.length === 0) return;
+    setCartRecsLoading(true);
+    productService.getCartRecommendations()
+      .then(data => setCartRecs(data.items || []))
+      .catch(() => setCartRecs([]))
+      .finally(() => setCartRecsLoading(false));
+  }, [isAuthenticated, items.length]);
 
   if (loading) {
     return (
@@ -23,14 +41,14 @@ const Cart = () => {
             <ShoppingBag className="w-12 h-12 text-gray-300" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-4xl font-black text-gray-900 tracking-tighter">Your cart is empty</h2>
-            <p className="text-gray-500">Looks like you haven't added any tech yet.</p>
+            <h2 className="text-4xl font-black text-gray-900 tracking-tighter">{t('cart.empty_title')}</h2>
+            <p className="text-gray-500">{t('cart.empty_subtitle')}</p>
           </div>
           <Link
             to="/products"
             className="inline-block bg-primary text-white px-10 py-4 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-gray-900 transition-colors shadow-xl shadow-primary/20"
           >
-            Start Shopping
+            {t('cart.start_shopping')}
           </Link>
         </div>
       </div>
@@ -42,9 +60,9 @@ const Cart = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center space-x-2 text-primary mb-4">
           <div className="h-1 w-8 bg-primary rounded-full" />
-          <span className="text-xs font-bold uppercase tracking-widest">Your Selection</span>
+          <span className="text-xs font-bold uppercase tracking-widest">{t('cart.selection_badge')}</span>
         </div>
-        <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-12">Shopping Cart</h1>
+        <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-12">{t('cart.title')}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2 space-y-6">
@@ -63,7 +81,7 @@ const Cart = () => {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-300 italic text-[10px]">
-                        No Image
+                          {t('cart.no_image')}
                       </div>
                     )}
                   </div>
@@ -109,7 +127,7 @@ const Cart = () => {
                     <button
                       onClick={() => removeItem(item.id)}
                       className="text-gray-300 hover:text-red-500 transition-colors p-2"
-                      title="Remove Item"
+                      title={t('cart.remove_item')}
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -121,20 +139,20 @@ const Cart = () => {
 
           <div className="lg:col-span-1">
             <div className="bg-gray-900 rounded-3xl p-8 sticky top-32 text-white shadow-2xl shadow-gray-900/20">
-              <h2 className="text-2xl font-black tracking-tight mb-8">Order Summary</h2>
+              <h2 className="text-2xl font-black tracking-tight mb-8">{t('cart.order_summary')}</h2>
 
               <div className="space-y-6 mb-8">
                 <div className="flex justify-between text-gray-400 font-bold text-xs uppercase tracking-widest">
-                  <span>Subtotal</span>
+                  <span>{t('cart.subtotal')}</span>
                   <span className="text-white">{formatPrice(cartTotal)}</span>
                 </div>
                 <div className="flex justify-between text-gray-400 font-bold text-xs uppercase tracking-widest">
-                  <span>Shipping</span>
-                  <span className="text-green-400">FREE</span>
+                  <span>{t('cart.shipping')}</span>
+                  <span className="text-green-400">{t('cart.free')}</span>
                 </div>
                 <div className="border-t border-white/10 pt-6">
                   <div className="flex justify-between items-end">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Amount</span>
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">{t('cart.total_amount')}</span>
                     <span className="text-4xl font-black text-primary tracking-tighter">
                       {formatPrice(cartTotal)}
                     </span>
@@ -146,7 +164,7 @@ const Cart = () => {
                 onClick={() => navigate('/checkout')}
                 className="w-full bg-primary text-white py-5 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white hover:text-primary transition-all duration-300 flex items-center justify-center group"
               >
-                <span>Proceed to Checkout</span>
+                <span>{t('cart.proceed_checkout')}</span>
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </button>
 
@@ -154,14 +172,26 @@ const Cart = () => {
                 to="/products"
                 className="block text-center text-gray-400 hover:text-white font-bold text-[10px] uppercase tracking-widest mt-6 transition-colors"
               >
-                Continue Shopping
+                {t('cart.continue_shopping')}
               </Link>
             </div>
           </div>
         </div>
       </div>
+
+      {cartRecs.length > 0 && (
+        <section className="mt-12 max-w-7xl mx-auto px-4">
+          <h2 className="text-xl font-black text-gray-900 mb-4">
+            Frequently Bought Together
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {cartRecs.map(p => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };
-
 export default Cart;

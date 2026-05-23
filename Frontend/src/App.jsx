@@ -2,6 +2,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { Toaster } from 'react-hot-toast';
 import { store } from './store';
+import { ThemeProvider } from './contexts/ThemeContext';
 import AppRoutes from './routes/AppRoutes';
 import Chatbot from './components/Chatbot';
 import OfflineBanner from './components/OfflineBanner';
@@ -9,6 +10,7 @@ import OfflineBanner from './components/OfflineBanner';
 function App() {
   return (
     <Provider store={store}>
+      <ThemeProvider>
       <BrowserRouter>
         <OfflineBanner />
         <AppRoutes />
@@ -40,6 +42,7 @@ function App() {
           }}
         />
       </BrowserRouter>
+      </ThemeProvider>
     </Provider>
   );
 }

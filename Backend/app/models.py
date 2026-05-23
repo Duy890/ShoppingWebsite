@@ -27,6 +27,7 @@ class User(Base):
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
+    wishlist_items = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
 
 
 class Address(Base):
@@ -94,6 +95,7 @@ class Product(Base):
     specifications = relationship("ProductSpecification", back_populates="product", cascade="all, delete-orphan")
     hotspots = relationship("ProductHotspot", back_populates="product", cascade="all, delete-orphan")
     related = relationship("RelatedProduct", foreign_keys="RelatedProduct.product_id", back_populates="product", cascade="all, delete-orphan")
+    wishlist_items = relationship("Wishlist", back_populates="product", cascade="all, delete-orphan")
 
 
 class ProductVariant(Base):
@@ -221,6 +223,28 @@ class Review(Base):
 
     user = relationship("User", back_populates="reviews")
     product = relationship("Product", back_populates="reviews")
+
+
+class Wishlist(Base):
+    __tablename__ = "wishlists"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    product_id = Column(String(36), ForeignKey("products.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="wishlist_items")
+    product = relationship("Product", back_populates="wishlist_items")
+
+
+class SearchLog(Base):
+    __tablename__ = "search_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    query = Column(String(500), nullable=False)
+    results_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Cart(Base):

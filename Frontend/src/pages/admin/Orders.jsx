@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import { orderService } from '../../services/orderService';
 import { formatPrice } from '../../utils/formatPrice';
 import { ORDER_STATUS, ORDER_STATUS_LABELS, SHIPPING_METHOD_LABELS } from '../../utils/constants';
@@ -26,9 +27,9 @@ const Orders = () => {
     try {
       await orderService.updateOrderStatus(orderId, newStatus, note);
       await loadOrders();
-      alert('Order status updated successfully!');
+      toast.success('Order status updated successfully!');
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 
@@ -36,9 +37,9 @@ const Orders = () => {
     try {
       await orderService.simulateNextOrderStatus(orderId);
       await loadOrders();
-      alert('Order status simulated successfully!');
+      toast.success('Order status simulated successfully!');
     } catch (error) {
-      alert(error.message);
+      toast.error(error.message);
     }
   };
 

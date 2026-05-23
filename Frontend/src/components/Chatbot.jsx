@@ -187,8 +187,9 @@ const Chatbot = () => {
   };
 
   const handleAction = (action) => {
-    if (action.type === 'navigate' && action.target) {
-      navigate(action.target);
+    const target = action.target || action.url;
+    if (action.type === 'navigate' && target) {
+      navigate(target);
       setIsOpen(false);
     }
   };
@@ -226,7 +227,7 @@ const Chatbot = () => {
             </div>
             <div>
               <h3 className="text-sm font-black uppercase tracking-wide">Shopping Assistant</h3>
-              <p className="text-xs font-medium text-gray-300">Mock chat service</p>
+              <p className="text-xs font-medium text-gray-300">AI shopping advisor</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
