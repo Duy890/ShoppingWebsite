@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from . import chat_service, models, repositories, schemas, services
 from .core.config import settings
 from .core.database import get_db
+from .core.rate_limit import limiter
 from .core.security import create_access_token, decode_access_token, verify_password, hash_password
 
 router = APIRouter()
@@ -42,19 +43,27 @@ def require_admin(user: models.User) -> None:
 UPLOAD_DIR = Path(__file__).resolve().parent / "static" / "images"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 MAX_IMAGE_SIZE = 5 * 1024 * 1024
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 def build_image_url(filename: str, request: Request) -> str:
     base_url = str(request.base_url).rstrip('/')
     return f"{base_url}/uploads/images/{filename}"
 
 
+def get_safe_image_extension(file: UploadFile) -> str:
+    extension = Path(file.filename or "").suffix.lower()
+    if extension not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="File type not allowed")
+    return extension
+
+
 @router.post("/upload-image")
 def upload_image(request: Request, file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
     require_admin(current_user)
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image file")
 
-    extension = Path(file.filename).suffix or ".jpg"
+    extension = get_safe_image_extension(file)
     filename = f"{uuid.uuid4().hex}{extension}"
     file_path = UPLOAD_DIR / filename
     file_bytes = file.file.read()
@@ -75,10 +84,10 @@ def upload_image(request: Request, file: UploadFile = File(...), current_user: m
 
 @router.post("/upload-avatar")
 def upload_avatar(request: Request, file: UploadFile = File(...), current_user: models.User = Depends(get_current_user)):
-    if not file.content_type.startswith("image/"):
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image file")
 
-    extension = Path(file.filename).suffix or ".jpg"
+    extension = get_safe_image_extension(file)
     filename = f"avatar_{current_user.id}_{uuid.uuid4().hex}{extension}"
     file_path = UPLOAD_DIR / filename
     file_bytes = file.file.read()
@@ -109,7 +118,8 @@ def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/auth/login", response_model=schemas.TokenWithUser)
-def login(payload: schemas.UserCreate, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(payload: schemas.UserCreate, request: Request, db: Session = Depends(get_db)):
     try:
         user = services.authenticate_user(db, payload.email, payload.password)
     except ValueError as exc:
@@ -125,7 +135,8 @@ def read_current_user(current_user: models.User = Depends(get_current_user)):
 
 
 @router.post("/auth/forgot-password")
-async def forgot_password(payload: schemas.ForgotPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+async def forgot_password(payload: schemas.ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     """
     Send a real password reset email to the user.
     Always returns 200 to avoid user enumeration.
@@ -574,7 +585,10 @@ def read_orders(current_user: models.User = Depends(get_current_user), db: Sessi
 @router.get("/orders/{order_id}", response_model=schemas.OrderRead)
 def read_order(order_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
-        return services.get_order(db, order_id)
+        order = services.get_order(db, order_id)
+        if order.user_id != current_user.id and not current_user.is_admin:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+        return order
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 

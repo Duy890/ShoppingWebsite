@@ -38,6 +38,7 @@ const ProductDetail = () => {
     selectedVariant,
     setSelectedVariant,
     displayPrice,
+    displayDescription,
     handleReviewSubmit,
     handleAddToCart,
     handleVariantChange,
@@ -139,8 +140,8 @@ const ProductDetail = () => {
                 {formatPrice(displayPrice || product.price)}
               </div>
 
-              <p className="text-gray-500 leading-relaxed text-lg">
-                {product.description}
+              <p className="text-gray-500 leading-relaxed text-lg whitespace-pre-line">
+                {displayDescription || product.description}
               </p>
             </div>
 
@@ -240,8 +241,8 @@ const ProductDetail = () => {
           </div>
 
           {activeTab === 'description' ? (
-            <div className="rounded-2xl bg-gray-50 p-8 text-gray-600 leading-8">
-              {product.description || t('product_detail.description_missing')}
+            <div className="rounded-2xl bg-gray-50 p-8 text-gray-600 leading-8 whitespace-pre-line">
+              {displayDescription || product.description || t('product_detail.description_missing')}
             </div>
           ) : (
             <ProductSpecifications specifications={specifications} />

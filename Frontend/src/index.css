@@ -17,3 +17,117 @@
     background: #cbd5e1;
   }
 }
+
+/* ============================================
+   DARK MODE — CSS Custom Properties
+   Ap dung cho toan bo app khi <html class="dark">
+   ============================================ */
+
+:root {
+  /* Backgrounds */
+  --color-bg-page:       #f9fafb;   /* gray-50 */
+  --color-bg-surface:    #ffffff;   /* white */
+  --color-bg-elevated:   #f3f4f6;   /* gray-100 */
+  --color-bg-input:      #ffffff;
+
+  /* Text */
+  --color-text-primary:  #111827;   /* gray-900 */
+  --color-text-secondary:#6b7280;   /* gray-500 */
+  --color-text-muted:    #9ca3af;   /* gray-400 */
+
+  /* Borders */
+  --color-border:        #e5e7eb;   /* gray-200 */
+  --color-border-focus:  #ff4d00;   /* primary */
+
+  /* Shadows */
+  --color-shadow:        rgba(0,0,0,0.08);
+
+  /* Nav */
+  --color-nav-bg:        #1f2937;   /* gray-800 */
+  --color-nav-text:      #ffffff;
+}
+
+.dark {
+  /* Backgrounds */
+  --color-bg-page:       #0f172a;   /* slate-900 */
+  --color-bg-surface:    #1e293b;   /* slate-800 */
+  --color-bg-elevated:   #334155;   /* slate-700 */
+  --color-bg-input:      #1e293b;
+
+  /* Text */
+  --color-text-primary:  #f1f5f9;   /* slate-100 */
+  --color-text-secondary:#94a3b8;   /* slate-400 */
+  --color-text-muted:    #64748b;   /* slate-500 */
+
+  /* Borders */
+  --color-border:        #334155;   /* slate-700 */
+  --color-border-focus:  #ff4d00;
+
+  /* Shadows */
+  --color-shadow:        rgba(0,0,0,0.4);
+
+  /* Nav */
+  --color-nav-bg:        #0f172a;
+  --color-nav-text:      #f1f5f9;
+}
+
+/* ============================================
+   AP DUNG CSS VARIABLES VAO CAC ELEMENT CO BAN
+   ============================================ */
+
+body {
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Cards / panels */
+.bg-white {
+  background-color: var(--color-bg-surface) !important;
+}
+.bg-gray-50 {
+  background-color: var(--color-bg-elevated) !important;
+}
+.bg-gray-100 {
+  background-color: var(--color-bg-elevated) !important;
+}
+
+/* Text */
+.text-gray-900 { color: var(--color-text-primary)   !important; }
+.text-gray-800 { color: var(--color-text-primary)   !important; }
+.text-gray-700 { color: var(--color-text-secondary) !important; }
+.text-gray-600 { color: var(--color-text-secondary) !important; }
+.text-gray-500 { color: var(--color-text-muted)     !important; }
+.text-gray-400 { color: var(--color-text-muted)     !important; }
+
+/* Borders */
+.border-gray-100,
+.border-gray-200 { border-color: var(--color-border) !important; }
+
+/* Inputs */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  background-color: var(--color-bg-input);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+/* Shadows */
+.shadow-sm,
+.shadow-md,
+.shadow-lg {
+  box-shadow: 0 2px 8px var(--color-shadow) !important;
+}
+
+/* Dropdowns / modals */
+.dark [class*="dropdown"],
+.dark [class*="modal"],
+.dark [class*="popup"],
+.dark [class*="panel"],
+.dark [class*="menu"] {
+  background-color: var(--color-bg-surface);
+  border-color: var(--color-border);
+}
+

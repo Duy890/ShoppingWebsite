@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { setFilters } from '../store/productSlice';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
 import { productService } from '../services/productService';
 
 const CategoryPage = () => {
+  const { t } = useTranslation();
   const { categoryId } = useParams();
   const dispatch = useDispatch();
   const { categories } = useProducts();
@@ -44,8 +46,8 @@ const CategoryPage = () => {
     <div className="min-h-screen bg-white">
       <div className="bg-gray-900 py-16 text-white">
         <div className="max-w-7xl mx-auto px-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary">Category</p>
-          <h1 className="mt-4 text-5xl font-black tracking-tight">{category?.name || 'Category'}</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-primary">{t('navbar.categories')}</p>
+          <h1 className="mt-4 text-5xl font-black tracking-tight">{category?.name || t('navbar.categories')}</h1>
           <p className="mt-4 max-w-2xl text-gray-300 text-lg">{category?.description || 'Browse across the collection and find your next favorite product.'}</p>
         </div>
       </div>
@@ -67,11 +69,11 @@ const CategoryPage = () => {
           </div>
         ) : (
           <div className="rounded-3xl border border-dashed border-gray-200 bg-gray-50 p-16 text-center">
-            <p className="text-2xl font-black text-gray-900">No products in this category yet</p>
+            <p className="text-2xl font-black text-gray-900">{t('category.no_products')}</p>
             <p className="mt-4 text-gray-500">Try another category or browse the entire catalog.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Link to="/products" className="rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary transition">
-                Browse all products
+                {t('category.browse_all')}
               </Link>
               <Link to="/search?q=" className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-orange-700 transition">
                 Search all products

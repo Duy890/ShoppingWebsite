@@ -77,7 +77,11 @@
       "support_desc": "Hỗ trợ suốt ngày đêm cho mọi thắc mắc và lo ngại của bạn.",
       "authentic": "Hàng chính hãng",
       "authentic_desc": "Chúng tôi nhập trực tiếp từ nhà sản xuất để đảm bảo 100% chính hãng."
-    }
+    },
+    "personalized_badge": "Dành riêng cho bạn",
+    "personalized_title": "Gợi ý sản phẩm",
+    "view_all_products": "Xem tất cả sản phẩm",
+    "brand_logo_aria": "Xem sản phẩm {{brand}}"
   },
   "footer": {
     "description": "Nâng tầm phong cách sống công nghệ của bạn với những thiết bị điện tử mới nhất. Sản phẩm chất lượng, giá cả cạnh tranh và giao hàng siêu tốc.",
@@ -233,5 +237,154 @@
     "failed_message": "Giao dịch không thành công. Vui lòng thử lại.",
     "view_orders": "Xem đơn hàng của tôi",
     "back_home": "Về trang chủ"
+  },
+  "login": {
+    "title": "Đăng nhập",
+    "subtitle": "Đăng nhập để tiếp tục mua sắm.",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "forgot_password": "Quên mật khẩu?",
+    "submit": "Đăng nhập",
+    "submitting": "Đang xử lý...",
+    "no_account": "Chưa có tài khoản?",
+    "sign_up": "Đăng ký"
+  },
+  "register": {
+    "title": "Tạo tài khoản",
+    "subtitle": "Đăng ký để trải nghiệm mua sắm toàn diện.",
+    "full_name": "Họ và tên",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "confirm_password": "Xác nhận mật khẩu",
+    "submit": "Đăng ký",
+    "submitting": "Đang xử lý...",
+    "have_account": "Đã có tài khoản?",
+    "sign_in": "Đăng nhập",
+    "password_mismatch": "Mật khẩu xác nhận không khớp."
+  },
+  "profile": {
+    "title": "Hồ sơ của tôi",
+    "edit_profile": "Chỉnh sửa hồ sơ",
+    "my_orders": "Đơn hàng của tôi",
+    "addresses": "Địa chỉ",
+    "add_address": "+ Thêm địa chỉ",
+    "no_orders": "Chưa có đơn hàng nào."
+  },
+  "edit_profile": {
+    "title": "Chỉnh sửa hồ sơ",
+    "back": "Quay lại",
+    "save_photo": "Lưu ảnh",
+    "saving": "Đang lưu...",
+    "full_name": "Họ và tên",
+    "your_name": "Tên của bạn",
+    "save_name": "Lưu tên",
+    "email_section": "Địa chỉ Email",
+    "current_email": "Email hiện tại",
+    "new_email": "Email mới",
+    "send_verification": "Gửi liên kết xác nhận",
+    "sending": "Đang gửi...",
+    "change_password": "Đổi mật khẩu",
+    "current_password": "Mật khẩu hiện tại",
+    "new_password": "Mật khẩu mới",
+    "confirm_password": "Xác nhận mật khẩu mới",
+    "forgot_password_link": "Quên mật khẩu hiện tại?",
+    "change_password_btn": "Đổi mật khẩu",
+    "name_empty": "Tên không được để trống.",
+    "passwords_mismatch": "Mật khẩu mới không khớp.",
+    "password_too_short": "Mật khẩu phải có ít nhất 6 ký tự.",
+    "email_same": "Vui lòng nhập địa chỉ email khác.",
+    "avatar_success": "Cập nhật ảnh đại diện thành công!",
+    "name_success": "Đã cập nhật tên!",
+    "email_success": "Đã gửi email xác nhận!",
+    "password_success": "Đã đổi mật khẩu thành công!",
+    "avatar_error": "Không thể cập nhật ảnh.",
+    "name_error": "Không thể cập nhật tên.",
+    "email_error": "Không thể gửi email xác nhận.",
+    "password_error": "Không thể đổi mật khẩu."
+  },
+  "wishlist": {
+    "title": "Danh sách yêu thích",
+    "empty_title": "Danh sách trống",
+    "empty_desc": "Thêm sản phẩm yêu thích để xem lại sau.",
+    "browse_products": "Khám phá sản phẩm",
+    "remove": "Xóa",
+    "removed": "Đã xóa khỏi danh sách.",
+    "add_to_cart": "Thêm vào giỏ"
+  },
+  "order_tracking": {
+    "title": "Theo dõi đơn hàng",
+    "order_id": "Mã đơn hàng",
+    "status": "Trạng thái",
+    "estimated_delivery": "Dự kiến giao",
+    "tracking_code": "Mã vận đơn",
+    "items": "Sản phẩm",
+    "not_found": "Không tìm thấy đơn hàng.",
+    "back_to_orders": "Quay lại đơn hàng",
+    "status_pending": "Chờ xử lý",
+    "status_confirmed": "Đã xác nhận",
+    "status_processing": "Đang xử lý",
+    "status_shipped": "Đã gửi hàng",
+    "status_out_for_delivery": "Đang giao",
+    "status_delivered": "Đã giao",
+    "status_cancelled": "Đã hủy",
+    "status_payment_failed": "Thanh toán thất bại",
+    "status_return_requested": "Yêu cầu hoàn trả",
+    "status_returned": "Đã hoàn trả",
+    "status_refunded": "Đã hoàn tiền",
+    "same_day": "Giao trong ngày"
+  },
+  "forgot_password": {
+    "title": "Quên mật khẩu?",
+    "subtitle": "Nhập email để nhận liên kết đặt lại mật khẩu.",
+    "email": "Email",
+    "submit": "Gửi liên kết",
+    "submitting": "Đang gửi...",
+    "back_to_login": "Quay lại đăng nhập",
+    "success": "Đã gửi! Kiểm tra hộp thư của bạn.",
+    "error": "Không thể gửi email. Vui lòng thử lại."
+  },
+  "not_found": {
+    "title": "Trang không tồn tại",
+    "desc": "Trang bạn đang tìm không được tìm thấy.",
+    "back_home": "Về trang chủ"
+  },
+  "category": {
+    "all_in": "Tất cả trong",
+    "no_products": "Không có sản phẩm nào.",
+    "browse_all": "Xem tất cả sản phẩm"
+  },
+  "compare": {
+    "title": "So sánh sản phẩm",
+    "empty": "Chưa có sản phẩm nào để so sánh.",
+    "browse": "Khám phá sản phẩm",
+    "remove": "Xóa",
+    "add_product": "Thêm sản phẩm",
+    "feature": "Tính năng"
+  },
+  "admin": {
+    "dashboard": "Tổng quan",
+    "products": "Sản phẩm",
+    "categories": "Danh mục",
+    "orders": "Đơn hàng",
+    "revenue": "Doanh thu",
+    "by_month": "Theo tháng",
+    "by_year": "Theo năm",
+    "top_searches": "Tìm kiếm nhiều nhất",
+    "top_viewed": "Xem nhiều nhất",
+    "cart_abandonment": "Bỏ giỏ hàng",
+    "abandonment_rate": "Tỉ lệ bỏ",
+    "views": "lượt xem",
+    "no_data": "Chưa có dữ liệu"
+  },
+  "access_denied": {
+    "title": "Truy cập bị từ chối",
+    "desc": "Bạn không có quyền truy cập tài nguyên này.",
+    "hint": "Nếu bạn tin rằng đây là một lỗi, vui lòng liên hệ với đội ngũ hỗ trợ của chúng tôi."
+  },
+  "server_error": {
+    "title": "Đã xảy ra lỗi",
+    "desc": "Chúng tôi đã gặp phải lỗi không mong muốn khi xử lý yêu cầu của bạn.",
+    "hint": "Đội ngũ của chúng tôi đã được thông báo và đang làm việc để khắc phục sự cố.",
+    "retry": "Thử lại"
   }
 }

@@ -518,10 +518,12 @@ def delete_product_variant(db: Session, variant_id: str):
     db.commit()
 
 
-# In-memory store for reset tokens (replace with DB column in production)
-_reset_tokens: dict[str, tuple[str, datetime]] = {}
-_email_change_tokens: dict[str, tuple[str, str, datetime]] = {}
-# token -> (user_id, new_email, expires_at)
+def _generate_unique_token(db: Session, model: type[models.Base]) -> str:
+    for _ in range(5):
+        token = secrets.token_urlsafe(32)
+        if not db.query(model).filter(model.token == token).first():
+            return token
+    raise ValueError("Unable to generate secure token")
 
 
 async def create_reset_token_and_send_email(db: Session, email: str) -> None:
@@ -533,8 +535,15 @@ async def create_reset_token_and_send_email(db: Session, email: str) -> None:
     if not user:
         raise ValueError("No account found with this email")
 
-    token = secrets.token_urlsafe(32)
-    _reset_tokens[token] = (email, datetime.utcnow() + timedelta(hours=1))
+    token = _generate_unique_token(db, models.PasswordResetToken)
+    reset_token = models.PasswordResetToken(
+        token=token,
+        user_id=user.id,
+        expires_at=datetime.utcnow() + timedelta(hours=1),
+        used=False,
+    )
+    db.add(reset_token)
+    db.commit()
 
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
     html = build_reset_password_email(reset_url, user.full_name or "")
@@ -554,8 +563,16 @@ async def create_email_change_token_and_send(db: Session, user: models.User, new
     if existing and existing.id != user.id:
         raise ValueError("This email is already registered to another account")
 
-    token = secrets.token_urlsafe(32)
-    _email_change_tokens[token] = (user.id, new_email, datetime.utcnow() + timedelta(hours=1))
+    token = _generate_unique_token(db, models.EmailChangeToken)
+    email_token = models.EmailChangeToken(
+        token=token,
+        user_id=user.id,
+        new_email=new_email,
+        expires_at=datetime.utcnow() + timedelta(hours=1),
+        used=False,
+    )
+    db.add(email_token)
+    db.commit()
 
     verify_url = f"{settings.FRONTEND_URL}/verify-email-change?token={token}"
     html = build_verify_email_change_email(verify_url, new_email, user.full_name or "")
@@ -568,21 +585,27 @@ async def create_email_change_token_and_send(db: Session, user: models.User, new
 
 def confirm_email_change(db: Session, token: str) -> models.User:
     """Apply the email change after the user clicks the verification link."""
-    if token not in _email_change_tokens:
+    email_token = (
+        db.query(models.EmailChangeToken)
+        .filter(models.EmailChangeToken.token == token, models.EmailChangeToken.used.is_(False))
+        .first()
+    )
+    if not email_token:
         raise ValueError("Invalid or expired verification token")
 
-    user_id, new_email, expires = _email_change_tokens[token]
-    if datetime.utcnow() > expires:
-        del _email_change_tokens[token]
+    if datetime.utcnow() > email_token.expires_at:
+        email_token.used = True
+        db.commit()
         raise ValueError("Verification link has expired")
 
-    user = repositories.get_user(db, user_id)
+    user = repositories.get_user(db, email_token.user_id)
     if not user:
         raise ValueError("User not found")
 
-    user.email = new_email
+    user.email = email_token.new_email
+    email_token.used = True
     db.commit()
-    del _email_change_tokens[token]
+    db.refresh(user)
     return user
 
 
@@ -590,24 +613,39 @@ def create_reset_token(db: Session, email: str) -> str:
     user = repositories.get_user_by_email(db, email)
     if not user:
         raise ValueError("No account found with this email")
-    token = secrets.token_urlsafe(32)
-    _reset_tokens[token] = (email, datetime.utcnow() + timedelta(hours=1))
+    token = _generate_unique_token(db, models.PasswordResetToken)
+    reset_token = models.PasswordResetToken(
+        token=token,
+        user_id=user.id,
+        expires_at=datetime.utcnow() + timedelta(hours=1),
+        used=False,
+    )
+    db.add(reset_token)
+    db.commit()
     return token
 
 
 def reset_password(db: Session, token: str, new_password: str) -> models.User:
-    if token not in _reset_tokens:
+    reset_token = (
+        db.query(models.PasswordResetToken)
+        .filter(models.PasswordResetToken.token == token, models.PasswordResetToken.used.is_(False))
+        .first()
+    )
+    if not reset_token:
         raise ValueError("Invalid or expired reset token")
-    email, expires = _reset_tokens[token]
-    if datetime.utcnow() > expires:
-        del _reset_tokens[token]
+
+    if datetime.utcnow() > reset_token.expires_at:
+        reset_token.used = True
+        db.commit()
         raise ValueError("Reset token has expired")
-    user = repositories.get_user_by_email(db, email)
+
+    user = repositories.get_user(db, reset_token.user_id)
     if not user:
         raise ValueError("User not found")
     user.hashed_password = hash_password(new_password)
+    reset_token.used = True
     db.commit()
-    del _reset_tokens[token]
+    db.refresh(user)
     return user
 
 

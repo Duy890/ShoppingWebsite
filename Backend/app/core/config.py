@@ -7,6 +7,8 @@ except ImportError:
 
 from typing import Optional
 
+from pydantic import Field
+
 
 ALLOWED_ORIGINS: list[str] = [
     origin.strip()
@@ -19,8 +21,8 @@ ALLOWED_ORIGINS: list[str] = [
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:password@localhost:5432/shopdb"
-    SECRET_KEY: str = "replace-me-with-a-secure-key"
+    DATABASE_URL: str = Field(...)
+    SECRET_KEY: str = Field(...)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
     ALGORITHM: str = "HS256"
 
@@ -39,8 +41,8 @@ class Settings(BaseSettings):
     # Email / SMTP
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = "duyl2282@gmail.com"           # Your Gmail address, e.g. yourapp@gmail.com
-    SMTP_PASSWORD: str = "isor zduw rprf yaqn"       # Gmail App Password (NOT your login password)
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
     SMTP_FROM_NAME: str = "Electronics Store"
     FRONTEND_URL: str = "http://localhost:5173"
 

@@ -1,6 +1,23 @@
 import { useState } from 'react';
 import { Trash2, Plus } from 'lucide-react';
 
+const COLOR_CODES = {
+  "Den": "#111111",
+  "Trang": "#F7F7F7",
+  "Xanh": "#2563EB",
+  "Bac": "#C0C0C0",
+  "Vang": "#D4AF37",
+  "Hong": "#F9A8D4",
+  "Xam": "#6B7280",
+  "Tim": "#8B5CF6",
+  "Kem": "#EADBC8",
+  "Do": "#DC2626",
+  "Titan Den": "#2D2D2D",
+  "Titan Trang": "#E8E1D9",
+  "Titan Sa Mac": "#C8A26A",
+  "Titan Xam": "#8A8A8A",
+};
+
 const SWATCH_FALLBACK = 'conic-gradient(from 90deg at 50% 50%, #e0e0e0 0%, #ffffff 25%, #e0e0e0 50%, #ffffff 75%, #e0e0e0 100%)';
 
 const isRenderableColor = (code) => {
@@ -24,7 +41,6 @@ const AdminVariantManager = ({ variants = [], onVariantsChange, productType }) =
       version_name: '',
       ram: '',
       storage: '',
-      sku: '',
       price: 0,
       compare_price: null,
       stock: 0,
@@ -37,14 +53,37 @@ const AdminVariantManager = ({ variants = [], onVariantsChange, productType }) =
 
   const handleRemoveVariant = (localId) => {
     const updated = localVariants.filter(v => v.local_id !== localId);
+    if (updated.length > 0 && !updated.some(v => v.is_default)) {
+      updated[0].is_default = true;
+    }
     setLocalVariants(updated);
     onVariantsChange(updated);
   };
 
   const handleVariantChange = (localId, field, value) => {
-    const updated = localVariants.map(v =>
+    let updated = localVariants.map(v =>
       v.local_id === localId ? { ...v, [field]: value } : v
     );
+
+    if (field === 'color_name') {
+      const autoCode = COLOR_CODES[value];
+      if (autoCode) {
+        updated = updated.map(v =>
+          v.local_id === localId ? { ...v, color_name: value, color_code: autoCode } : v
+        );
+      }
+    }
+
+    if (field === 'price') {
+      const numPrice = parseFloat(value) || 0;
+      const autoCompare = Math.round(numPrice * 1.1 / 10000) * 10000;
+      updated = updated.map(v =>
+        v.local_id === localId
+          ? { ...v, price: numPrice, compare_price: autoCompare }
+          : v
+      );
+    }
+
     setLocalVariants(updated);
     onVariantsChange(updated);
   };
@@ -85,22 +124,28 @@ const AdminVariantManager = ({ variants = [], onVariantsChange, productType }) =
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Version</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">RAM</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Storage</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Price</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Giá gốc (gạch)</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Stock</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">Default</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-700">Action</th>
               </tr>
             </thead>
+            <datalist id="color-suggestions">
+              {Object.keys(COLOR_CODES).map(name => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
             <tbody>
               {localVariants.map((variant) => (
                 <tr key={variant.local_id} className="border-b border-gray-200 hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <input
                       type="text"
+                      list="color-suggestions"
                       value={variant.color_name || ''}
                       onChange={(e) => handleVariantChange(variant.local_id, 'color_name', e.target.value)}
-                      placeholder="e.g., Titanium Black"
+                      placeholder="Den, Bac, Trang..."
                       className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </td>
@@ -150,22 +195,18 @@ const AdminVariantManager = ({ variants = [], onVariantsChange, productType }) =
                   </td>
                   <td className="px-4 py-3">
                     <input
-                      type="text"
-                      value={variant.sku || ''}
-                      onChange={(e) => handleVariantChange(variant.local_id, 'sku', e.target.value)}
-                      placeholder="SKU"
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      type="number"
+                      value={variant.price || 0}
+                      onChange={(e) => handleVariantChange(variant.local_id, 'price', e.target.value)}
+                      placeholder="0"
+                      className="w-28 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      step="1000"
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={variant.price || 0}
-                      onChange={(e) => handleVariantChange(variant.local_id, 'price', parseFloat(e.target.value))}
-                      placeholder="0"
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      step="0.01"
-                    />
+                    <span className="text-xs text-gray-500 line-through">
+                      {variant.compare_price ? variant.compare_price.toLocaleString('vi-VN') : '—'}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <input
@@ -173,7 +214,7 @@ const AdminVariantManager = ({ variants = [], onVariantsChange, productType }) =
                       value={variant.stock || 0}
                       onChange={(e) => handleVariantChange(variant.local_id, 'stock', parseInt(e.target.value))}
                       placeholder="0"
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </td>
                   <td className="px-4 py-3 text-center">

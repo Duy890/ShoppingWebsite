@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Check } from 'lucide-react';
+import { formatStorage } from '../utils/formatStorage';
 
 const SWATCH_FALLBACK = 'conic-gradient(from 90deg at 50% 50%, #e0e0e0 0%, #ffffff 25%, #e0e0e0 50%, #ffffff 75%, #e0e0e0 100%)';
 
@@ -30,6 +31,17 @@ const VariantSelector = ({ variants, onVariantChange, currentVariant }) => {
       });
     }
   });
+
+  const formatVersionKey = (key) => {
+    if (!key || key.includes('|')) {
+      const [ram, storage] = (key || '').split('|');
+      const parts = [];
+      if (ram) parts.push(ram);
+      if (storage) parts.push(formatStorage(storage));
+      return parts.join(' | ') || key;
+    }
+    return key;
+  };
 
   const versionGroups = [];
   const seenV = new Set();
@@ -106,7 +118,7 @@ const VariantSelector = ({ variants, onVariantChange, currentVariant }) => {
         </div>
       )}
 
-      {versionGroups.length > 1 && (
+      {versionGroups.length >= 1 && versionGroups.some(vg => vg.ram || vg.storage) && (
         <div className="space-y-4">
           <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Phiên bản</label>
           <div className="flex flex-wrap gap-4">
@@ -127,7 +139,7 @@ const VariantSelector = ({ variants, onVariantChange, currentVariant }) => {
                       : 'border-gray-50 text-gray-300 cursor-not-allowed'
                   }`}
                 >
-                  {key}
+                  {formatVersionKey(key)}
                   {selectedVersion === key && isAvailable && (
                     <Check className="w-4 h-4 text-primary absolute -top-2 -right-2 bg-primary text-white rounded-full p-0.5" />
                   )}

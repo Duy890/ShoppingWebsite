@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { X, ChevronLeft } from 'lucide-react';
 import { formatPrice } from '../utils/formatPrice';
 import { productService } from '../services/productService';
@@ -7,6 +8,7 @@ import { useAuth } from '../hooks/useAuth';
 import StarRating from '../components/StarRating';
 
 const CompareProducts = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const [compareList, setCompareList] = useState(null);
@@ -83,16 +85,16 @@ const CompareProducts = () => {
             className="flex items-center gap-2 text-blue-600 mb-8 hover:text-blue-700"
           >
             <ChevronLeft className="w-5 h-5" />
-            Back
+            {t('edit_profile.back')}
           </button>
           <div className="text-center space-y-4">
-            <h1 className="text-3xl font-bold text-gray-900">Compare Products</h1>
-            <p className="text-gray-600">No products added to compare yet</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t('compare.title')}</h1>
+            <p className="text-gray-600">{t('compare.empty')}</p>
             <button
               onClick={() => navigate('/products')}
               className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700"
             >
-              Browse Products
+              {t('compare.browse')}
             </button>
           </div>
         </div>
@@ -112,10 +114,10 @@ const CompareProducts = () => {
             className="flex items-center gap-2 text-blue-600 mb-4 hover:text-blue-700"
           >
             <ChevronLeft className="w-5 h-5" />
-            Back
+            {t('edit_profile.back')}
           </button>
-          <h1 className="text-3xl font-bold text-gray-900">Compare Products</h1>
-          <p className="text-gray-600 mt-2">{compareProducts.length} products selected</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('compare.title')}</h1>
+          <p className="text-gray-600 mt-2">{compareProducts.length} {t('order_tracking.items')}</p>
         </div>
 
         {/* Comparison Table */}
@@ -125,7 +127,7 @@ const CompareProducts = () => {
               <tbody>
                 {/* Product Cards */}
                 <tr className="border-b border-gray-200">
-                  <td className="p-4 font-semibold text-gray-900 min-w-[150px]">Product</td>
+                  <td className="p-4 font-semibold text-gray-900 min-w-[150px]">{t('admin.products')}</td>
                   {compareProducts.map((product) => (
                     <td key={product.id} className="p-4 min-w-[300px] border-l border-gray-200">
                       <div className="space-y-4">
@@ -156,7 +158,7 @@ const CompareProducts = () => {
                           onClick={() => navigate(`/products/${product.id}`)}
                           className="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 text-sm"
                         >
-                          View Details
+                          {t('product_detail.back_to_products')}
                         </button>
                       </div>
                     </td>
@@ -183,7 +185,7 @@ const CompareProducts = () => {
 
                 {/* Stock Status */}
                 <tr className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="p-4 font-semibold text-gray-900 bg-gray-100">Availability</td>
+                  <td className="p-4 font-semibold text-gray-900 bg-gray-100">{t('product_detail.availability')}</td>
                   {compareProducts.map((product) => (
                     <td
                       key={`stock-${product.id}`}
@@ -196,7 +198,7 @@ const CompareProducts = () => {
                             : 'bg-red-100 text-red-800'
                         }`}
                       >
-                        {product.stock > 0 ? `In Stock (${product.stock})` : 'Out of Stock'}
+                        {product.stock > 0 ? `${t('product_detail.in_stock')} (${product.stock})` : t('product_detail.out_of_stock')}
                       </span>
                     </td>
                   ))}

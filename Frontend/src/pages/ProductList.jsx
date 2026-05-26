@@ -2,7 +2,7 @@ import { useEffect, useMemo, memo, useCallback, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { setFilters, setPagination, clearFilters } from '../store/productSlice';
+import { setFilters, setProducts, setPagination, clearFilters } from '../store/productSlice';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ProductCard';
 import { productService } from '../services/productService';
@@ -46,7 +46,7 @@ const ProductList = () => {
     if (urlKey === prevUrlKeyRef.current) return;
     prevUrlKeyRef.current = urlKey;
 
-    console.log('[ProductList] URL filters changed, syncing to Redux');
+    console.log('[ProductList] URL filters changed:', { brandParam, categoryParam });
 
     dispatch(setFilters({
       category: categoryParam,
@@ -54,6 +54,22 @@ const ProductList = () => {
       brand: brandParam,
       search: searchParam,
     }));
+
+    dispatch(setProducts({ items: [], pagination: {
+      page: 1, limit: limitParam,
+      total_items: 0, total_pages: 0,
+      has_next: false, has_prev: false
+    }}));
+
+    loadProducts({
+      category: categoryParam,
+      type: typeParam,
+      brand: brandParam,
+      search: searchParam,
+      sortBy: sortBy,
+      page: pageParam,
+      limit: limitParam,
+    });
   }, [dispatch, categoryParam, typeParam, brandParam, searchParam]);
 
   useEffect(() => {

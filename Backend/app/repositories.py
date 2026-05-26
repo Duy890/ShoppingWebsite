@@ -299,8 +299,6 @@ def _get_all_category_ids(db: Session, category_id: str) -> list[str]:
 
 
 def get_products(db: Session, category_id: str | None = None, search: str | None = None, featured: bool | None = None, sort_by: str | None = None, product_type: str | None = None, brand: str | None = None, page: int = 1, limit: int = 20) -> tuple[list[models.Product], int]:
-    print(f"[DEBUG] get_products called with: category={category_id}, type={product_type}, brand={brand}, page={page}, limit={limit}")
-    
     query = db.query(models.Product).options(joinedload(models.Product.category))
 
     if category_id:
@@ -312,30 +310,32 @@ def get_products(db: Session, category_id: str | None = None, search: str | None
             pass
 
         if is_uuid:
-            print(f"[DEBUG] Filtering by category ID: {category_id}")
             query = query.filter(models.Product.category_id == category_id)
         else:
-            print(f"[DEBUG] Filtering by category slug: {category_id}")
             category = db.query(models.Category).filter(models.Category.slug == category_id).first()
             
             if category:
-                print(f"[DEBUG] Found category: {category.name} (id={category.id})")
                 all_category_ids = _get_all_category_ids(db, category.id)
-                print(f"[DEBUG] All category IDs (including children): {all_category_ids}")
-                print(f"[DEBUG] Product IDs in those categories: {db.query(models.Product.category_id).filter(models.Product.category_id.in_(all_category_ids)).all()}")
                 query = query.join(models.Category).filter(models.Category.id.in_(all_category_ids))
             else:
-                print(f"[DEBUG] Category slug '{category_id}' not found in database!")
                 query = query.filter(models.Product.id == None)
 
     if search:
-        query = query.filter(models.Product.name.ilike(f"%{search}%"))
+        search_value = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                models.Product.name.ilike(search_value),
+                models.Product.brand.ilike(search_value),
+                models.Product.sku.ilike(search_value),
+                models.Product.description.ilike(search_value),
+            )
+        )
     if featured is not None:
         query = query.filter(models.Product.featured == featured)
     if product_type:
         query = query.filter(models.Product.product_type == product_type)
     if brand:
-        query = query.filter(models.Product.brand.ilike(brand))
+        query = query.filter(models.Product.brand.ilike(f"%{brand.strip()}%"))
 
     if sort_by:
         if sort_by == "price":

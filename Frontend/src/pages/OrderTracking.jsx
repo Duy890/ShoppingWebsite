@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-hot-toast';
 import { orderService } from '../services/orderService';
 import { formatPrice } from '../utils/formatPrice';
@@ -16,19 +17,19 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-const statusConfig = {
-  pending: { label: 'Pending', color: 'text-yellow-600', bg: 'bg-yellow-50', icon: Clock },
-  confirmed: { label: 'Confirmed', color: 'text-blue-600', bg: 'bg-blue-50', icon: CheckCircle },
-  processing: { label: 'Processing', color: 'text-purple-600', bg: 'bg-purple-50', icon: Package },
-  shipped: { label: 'Shipped', color: 'text-indigo-600', bg: 'bg-indigo-50', icon: Truck },
-  out_for_delivery: { label: 'Out for Delivery', color: 'text-orange-600', bg: 'bg-orange-50', icon: Truck },
-  delivered: { label: 'Delivered', color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle },
-  cancelled: { label: 'Cancelled', color: 'text-red-600', bg: 'bg-red-50', icon: AlertCircle },
-  payment_failed: { label: 'Payment Failed', color: 'text-red-600', bg: 'bg-red-50', icon: AlertCircle },
-  return_requested: { label: 'Return Requested', color: 'text-gray-600', bg: 'bg-gray-50', icon: Package },
-  returned: { label: 'Returned', color: 'text-gray-600', bg: 'bg-gray-50', icon: Package },
-  refunded: { label: 'Refunded', color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle },
-};
+const STATUS_CONFIG = (t) => ({
+  pending: { label: t('order_tracking.status_pending'), color: 'text-yellow-600', bg: 'bg-yellow-50', icon: Clock },
+  confirmed: { label: t('order_tracking.status_confirmed'), color: 'text-blue-600', bg: 'bg-blue-50', icon: CheckCircle },
+  processing: { label: t('order_tracking.status_processing'), color: 'text-purple-600', bg: 'bg-purple-50', icon: Package },
+  shipped: { label: t('order_tracking.status_shipped'), color: 'text-indigo-600', bg: 'bg-indigo-50', icon: Truck },
+  out_for_delivery: { label: t('order_tracking.status_out_for_delivery'), color: 'text-orange-600', bg: 'bg-orange-50', icon: Truck },
+  delivered: { label: t('order_tracking.status_delivered'), color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle },
+  cancelled: { label: t('order_tracking.status_cancelled'), color: 'text-red-600', bg: 'bg-red-50', icon: AlertCircle },
+  payment_failed: { label: t('order_tracking.status_payment_failed'), color: 'text-red-600', bg: 'bg-red-50', icon: AlertCircle },
+  return_requested: { label: t('order_tracking.status_return_requested'), color: 'text-gray-600', bg: 'bg-gray-50', icon: Package },
+  returned: { label: t('order_tracking.status_returned'), color: 'text-gray-600', bg: 'bg-gray-50', icon: Package },
+  refunded: { label: t('order_tracking.status_refunded'), color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle },
+});
 
 const statusOrder = [
   'pending',
@@ -43,6 +44,8 @@ const statusOrder = [
 ];
 
 const OrderTracking = () => {
+  const { t } = useTranslation();
+  const statusConfig = STATUS_CONFIG(t);
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [timeline, setTimeline] = useState([]);
@@ -64,8 +67,8 @@ const OrderTracking = () => {
       setOrder(orderData);
       setTimeline(timelineData.history || []);
     } catch (err) {
-      setError(err.message || 'Failed to load order tracking');
-      toast.error('Failed to load order tracking');
+      setError(err.message || t('order_tracking.not_found'));
+      toast.error(t('order_tracking.not_found'));
     } finally {
       setLoading(false);
     }
@@ -102,7 +105,7 @@ const OrderTracking = () => {
             className="inline-flex items-center px-6 py-3 bg-primary text-white rounded-full hover:bg-orange-600 transition-colors"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Orders
+            {t('order_tracking.back_to_orders')}
           </Link>
         </div>
       </div>
@@ -110,7 +113,7 @@ const OrderTracking = () => {
   }
 
   const currentStatusIndex = getCurrentStatusIndex(order.status);
-  const statusInfo = statusConfig[order.status];
+  const statusInfo = statusConfig[order.status] || { label: order.status, color: 'text-gray-600', bg: 'bg-gray-50', icon: Package };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -122,10 +125,10 @@ const OrderTracking = () => {
             className="inline-flex items-center text-primary hover:text-orange-600 mb-4"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Orders
+            {t('order_tracking.back_to_orders')}
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900">Order Tracking</h1>
-          <p className="text-gray-600 mt-2">Order #{order.id}</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('order_tracking.title')}</h1>
+          <p className="text-gray-600 mt-2">{t('order_tracking.order_id')} #{order.id}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -133,7 +136,7 @@ const OrderTracking = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Order Status</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{t('order_tracking.status')}</h2>
                 <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusInfo.bg} ${statusInfo.color}`}>
                   <statusInfo.icon className="h-4 w-4 mr-2" />
                   {statusInfo.label}
@@ -146,7 +149,7 @@ const OrderTracking = () => {
                   {statusOrder.slice(0, 6).map((status, index) => {
                     const isCompleted = isStatusCompleted(status, order.status);
                     const isCurrent = status === order.status;
-                    const config = statusConfig[status];
+                    const config = statusConfig[status] || { label: status, icon: Package };
                     const Icon = config.icon;
 
                     return (
@@ -176,10 +179,10 @@ const OrderTracking = () => {
 
             {/* Timeline */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Order Timeline</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">{t('order_tracking.title')}</h2>
               <div className="space-y-6">
                 {timeline.map((event, index) => {
-                  const config = statusConfig[event.new_status];
+                  const config = statusConfig[event.new_status] || { label: event.new_status, color: 'text-gray-600', bg: 'bg-gray-50', icon: Package };
                   const Icon = config.icon;
                   return (
                     <div key={event.id} className="flex items-start space-x-4">
@@ -200,7 +203,7 @@ const OrderTracking = () => {
                         )}
                         {event.old_status && (
                           <p className="text-xs text-gray-500 mt-1">
-                            Changed from {statusConfig[event.old_status].label}
+                            Changed from {(statusConfig[event.old_status] || { label: event.old_status }).label}
                           </p>
                         )}
                       </div>
@@ -215,7 +218,7 @@ const OrderTracking = () => {
           <div className="space-y-6">
             {/* Shipping Info */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Shipping Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('profile.addresses')}</h3>
               <div className="space-y-3">
                 {order.shipping_method && (
                   <div>
@@ -227,10 +230,10 @@ const OrderTracking = () => {
                 )}
                 {order.estimated_delivery_days !== null && order.estimated_delivery_days !== undefined && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Estimated Delivery</label>
+                    <label className="text-sm font-medium text-gray-500">{t('order_tracking.estimated_delivery')}</label>
                     <p className="text-sm text-gray-900">
                       {order.estimated_delivery_days === 0
-                        ? 'Same day'
+                        ? t('order_tracking.same_day')
                         : order.estimated_delivery_days === 1
                         ? '1 business day'
                         : `${order.estimated_delivery_days} business days`}
@@ -239,7 +242,7 @@ const OrderTracking = () => {
                 )}
                 {order.tracking_code && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Tracking Code</label>
+                    <label className="text-sm font-medium text-gray-500">{t('order_tracking.tracking_code')}</label>
                     <p className="text-sm text-gray-900 font-mono">{order.tracking_code}</p>
                   </div>
                 )}
@@ -251,7 +254,7 @@ const OrderTracking = () => {
                 )}
                 {order.estimated_delivery && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Estimated Delivery Date</label>
+                    <label className="text-sm font-medium text-gray-500">{t('order_tracking.estimated_delivery')}</label>
                     <p className="text-sm text-gray-900">
                       {new Date(order.estimated_delivery).toLocaleDateString()}
                     </p>
@@ -296,7 +299,7 @@ const OrderTracking = () => {
                 {formatPrice(Number(order?.total_amount || 0))}
               </div>
               <p className="text-sm text-gray-600">
-                {(order?.items || []).reduce((sum, item) => sum + Number(item?.quantity || 0), 0)} items
+                {(order?.items || []).reduce((sum, item) => sum + Number(item?.quantity || 0), 0)} {t('order_tracking.items')}
               </p>
               {(order?.items || []).length > 0 && (
                 <div className="mt-4 space-y-2 border-t border-gray-100 pt-4">

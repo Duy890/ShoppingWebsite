@@ -24,6 +24,7 @@ export const useProducts = () => {
 
   const requestIdRef = useRef(0);
   const loadingRef = useRef(false);
+  const isInitialMountRef = useRef(true);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -70,10 +71,20 @@ export const useProducts = () => {
   }, []);
 
   useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
     if (loadingRef.current) return;
     requestIdRef.current = 0;
     loadProducts();
   }, [loadProducts]);
+
+  useEffect(() => {
+    return () => {
+      loadingRef.current = false;
+    };
+  }, []);
 
   const loadProduct = useCallback(async (id) => {
     try {

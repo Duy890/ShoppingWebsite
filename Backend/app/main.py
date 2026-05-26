@@ -3,12 +3,16 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .core.database import Base, engine, SessionLocal
 from .core.config import ALLOWED_ORIGINS
+from .core.rate_limit import limiter
 from .controllers import router
 from .core.security import hash_password
 from .repositories import get_user_by_email, create_user
@@ -25,6 +29,7 @@ from .routes.locations import router as locations_router
 from .routes.navigation import router as navigation_router
 
 app = FastAPI(title="e-shop. Backend API")
+app.state.limiter = limiter
 
 static_root = Path(__file__).resolve().parent / "static"
 static_root.mkdir(parents=True, exist_ok=True)
@@ -37,8 +42,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SlowAPIMiddleware)
 
 # Register exception handlers
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(SQLAlchemyError, database_exception_handler)
 app.add_exception_handler(Exception, general_exception_handler)
@@ -50,7 +57,24 @@ app.include_router(locations_router)
 app.include_router(navigation_router)
 
 
+ALLOWED_SCHEMA_COLUMNS = {
+    "users": {"role"},
+    "products": {
+        "brand",
+        "sku",
+        "product_type",
+        "rating",
+        "review_count",
+        "status",
+        "view_count",
+        "embedding",
+    },
+}
+
+
 def add_column_if_missing(table_name: str, column_name: str, definition: str) -> None:
+    if column_name not in ALLOWED_SCHEMA_COLUMNS.get(table_name, set()):
+        raise ValueError("Invalid table/column for schema migration")
     inspector = inspect(engine)
     if table_name not in inspector.get_table_names():
         return

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthCard from '../components/auth/AuthCard';
 import AuthHeader from '../components/auth/AuthHeader';
@@ -9,6 +10,7 @@ import AuthButton from '../components/auth/AuthButton';
 import AuthFooter from '../components/auth/AuthFooter';
 
 const Register = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,7 @@ const Register = () => {
     setErrorMessage('');
 
     if (formData.password !== formData.confirmPassword) {
-      setErrorMessage('Passwords do not match.');
+      setErrorMessage(t('register.password_mismatch'));
       return;
     }
 
@@ -50,18 +52,18 @@ const Register = () => {
 
   return (
     <AuthLayout
-      title="Create your account"
-      subtitle="Join our electronics marketplace and manage orders, addresses, and wishlist in one place."
+      title={t('register.title')}
+      subtitle={t('register.subtitle')}
     >
       <AuthCard>
         <AuthHeader
-          title="Sign up"
-          description="Create an account to unlock faster checkout, saved preferences, and order tracking."
+          title={t('register.title')}
+          description={t('register.subtitle')}
         />
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <AuthInput
-            label="Full Name"
+            label={t('register.full_name')}
             name="fullName"
             type="text"
             value={formData.fullName}
@@ -71,7 +73,7 @@ const Register = () => {
           />
 
           <AuthInput
-            label="Email"
+            label={t('register.email')}
             name="email"
             type="email"
             value={formData.email}
@@ -81,7 +83,7 @@ const Register = () => {
           />
 
           <AuthInput
-            label="Password"
+            label={t('register.password')}
             name="password"
             type="password"
             value={formData.password}
@@ -92,7 +94,7 @@ const Register = () => {
           />
 
           <AuthInput
-            label="Confirm Password"
+            label={t('register.confirm_password')}
             name="confirmPassword"
             type="password"
             value={formData.confirmPassword}
@@ -109,13 +111,13 @@ const Register = () => {
           )}
 
           <AuthButton type="submit" loading={loading}>
-            {loading ? 'Creating account...' : 'Create account'}
+            {loading ? t('register.submitting') : t('register.submit')}
           </AuthButton>
         </form>
 
         <AuthFooter
-          message="Already have an account?"
-          linkText="Sign in"
+          message={t('register.have_account')}
+          linkText={t('register.sign_in')}
           linkTo="/login"
         />
       </AuthCard>

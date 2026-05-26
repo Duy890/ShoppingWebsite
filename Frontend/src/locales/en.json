@@ -77,7 +77,11 @@
       "support_desc": "Round-the-clock assistance for all your inquiries and concerns.",
       "authentic": "Authentic Only",
       "authentic_desc": "We source directly from manufacturers to ensure 100% authenticity."
-    }
+    },
+    "personalized_badge": "Personalized",
+    "personalized_title": "You May Also Like",
+    "view_all_products": "View All Products",
+    "brand_logo_aria": "View {{brand}} products"
   },
   "footer": {
     "description": "Elevate your tech lifestyle with the latest in electronics and gadgets. Quality products, unbeatable prices, and lightning-fast delivery.",
@@ -233,5 +237,154 @@
     "failed_message": "The transaction was unsuccessful. Please try again.",
     "view_orders": "View My Orders",
     "back_home": "Back to Home"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Sign in to your account and continue shopping.",
+    "email": "Email",
+    "password": "Password",
+    "forgot_password": "Forgot password?",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "no_account": "Don't have an account?",
+    "sign_up": "Sign up"
+  },
+  "register": {
+    "title": "Create account",
+    "subtitle": "Sign up to unlock faster checkout and order tracking.",
+    "full_name": "Full Name",
+    "email": "Email",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "submit": "Sign up",
+    "submitting": "Creating account...",
+    "have_account": "Already have an account?",
+    "sign_in": "Sign in",
+    "password_mismatch": "Passwords do not match."
+  },
+  "profile": {
+    "title": "My Profile",
+    "edit_profile": "Edit Profile",
+    "my_orders": "My Orders",
+    "addresses": "Addresses",
+    "add_address": "+ Add Address",
+    "no_orders": "No orders yet."
+  },
+  "edit_profile": {
+    "title": "Edit Profile",
+    "back": "Back",
+    "save_photo": "Save Photo",
+    "saving": "Saving...",
+    "full_name": "Full Name",
+    "your_name": "Your name",
+    "save_name": "Save Name",
+    "email_section": "Email Address",
+    "current_email": "Current email",
+    "new_email": "New Email Address",
+    "send_verification": "Send Verification Link",
+    "sending": "Sending...",
+    "change_password": "Change Password",
+    "current_password": "Current Password",
+    "new_password": "New Password",
+    "confirm_password": "Confirm New Password",
+    "forgot_password_link": "Forgot current password?",
+    "change_password_btn": "Change Password",
+    "name_empty": "Name cannot be empty.",
+    "passwords_mismatch": "New passwords do not match.",
+    "password_too_short": "Password must be at least 6 characters.",
+    "email_same": "Please enter a different email address.",
+    "avatar_success": "Avatar updated!",
+    "name_success": "Name updated!",
+    "email_success": "Verification email sent!",
+    "password_success": "Password changed successfully!",
+    "avatar_error": "Failed to update avatar.",
+    "name_error": "Failed to update name.",
+    "email_error": "Failed to send verification email.",
+    "password_error": "Failed to change password."
+  },
+  "wishlist": {
+    "title": "Wishlist",
+    "empty_title": "Your wishlist is empty",
+    "empty_desc": "Save items you love to revisit them later.",
+    "browse_products": "Browse Products",
+    "remove": "Remove",
+    "removed": "Removed from wishlist.",
+    "add_to_cart": "Add to Cart"
+  },
+  "order_tracking": {
+    "title": "Order Tracking",
+    "order_id": "Order ID",
+    "status": "Status",
+    "estimated_delivery": "Estimated Delivery",
+    "tracking_code": "Tracking Code",
+    "items": "Items",
+    "not_found": "Order not found.",
+    "back_to_orders": "Back to Orders",
+    "status_pending": "Pending",
+    "status_confirmed": "Confirmed",
+    "status_processing": "Processing",
+    "status_shipped": "Shipped",
+    "status_out_for_delivery": "Out for Delivery",
+    "status_delivered": "Delivered",
+    "status_cancelled": "Cancelled",
+    "status_payment_failed": "Payment Failed",
+    "status_return_requested": "Return Requested",
+    "status_returned": "Returned",
+    "status_refunded": "Refunded",
+    "same_day": "Same day"
+  },
+  "forgot_password": {
+    "title": "Forgot password?",
+    "subtitle": "Enter your email and we'll send you a reset link.",
+    "email": "Email",
+    "submit": "Send reset link",
+    "submitting": "Sending...",
+    "back_to_login": "Back to Sign in",
+    "success": "Reset link sent! Check your inbox.",
+    "error": "Unable to send reset email. Please try again."
+  },
+  "not_found": {
+    "title": "Page not found",
+    "desc": "The page you're looking for doesn't exist.",
+    "back_home": "Back to Home"
+  },
+  "category": {
+    "all_in": "All in",
+    "no_products": "No products found.",
+    "browse_all": "Browse all products"
+  },
+  "compare": {
+    "title": "Compare Products",
+    "empty": "No products to compare yet.",
+    "browse": "Browse Products",
+    "remove": "Remove",
+    "add_product": "Add Product",
+    "feature": "Feature"
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "categories": "Categories",
+    "orders": "Orders",
+    "revenue": "Revenue",
+    "by_month": "By Month",
+    "by_year": "By Year",
+    "top_searches": "Top Searches",
+    "top_viewed": "Most Viewed",
+    "cart_abandonment": "Cart Abandonment",
+    "abandonment_rate": "Abandonment",
+    "views": "views",
+    "no_data": "No data yet"
+  },
+  "access_denied": {
+    "title": "Access Denied",
+    "desc": "You don't have permission to access this resource.",
+    "hint": "If you believe this is a mistake, please contact our support team."
+  },
+  "server_error": {
+    "title": "Something Went Wrong",
+    "desc": "We encountered an unexpected error while processing your request.",
+    "hint": "Our team has been notified and is working on fixing the issue.",
+    "retry": "Try Again"
   }
 }

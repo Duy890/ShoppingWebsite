@@ -40,7 +40,16 @@ const ProductSpecifications = ({ specifications, emptyMessage = 'Chưa có thôn
                     {spec.key || spec.spec_key}
                   </td>
                   <td className="align-top px-5 py-4 text-sm font-semibold leading-6 text-gray-900 whitespace-pre-line">
-                    {spec.value || spec.spec_value || '-'}
+                    {spec._variantHighlight ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-bold text-primary">{spec.value || spec.spec_value || '-'}</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                          Phiên bản này
+                        </span>
+                      </span>
+                    ) : (
+                      spec.value || spec.spec_value || '-'
+                    )}
                   </td>
                 </tr>
               ))}

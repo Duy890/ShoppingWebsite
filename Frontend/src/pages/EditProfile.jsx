@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../services/authService';
 import { toast } from 'react-hot-toast';
 import { User, Mail, KeyRound, Camera, ArrowLeft, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react';
@@ -31,6 +32,7 @@ const SaveButton = ({ loading, children, disabled }) => (
 );
 
 const EditProfile = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { profile, user, updateProfile } = useAuth();
@@ -59,10 +61,10 @@ const EditProfile = () => {
 
   useEffect(() => {
     if (searchParams.get('email_changed') === '1') {
-      toast.success('Email updated successfully!');
+      toast.success(t('edit_profile.avatar_success'));
     }
     if (searchParams.get('email_error') === '1') {
-      toast.error('Email verification failed or link expired.');
+      toast.error(t('edit_profile.email_error'));
     }
   }, []);
 
@@ -81,9 +83,9 @@ const EditProfile = () => {
       await updateProfile({ full_name: profile?.full_name, avatar_url: result.avatar_url });
       setSelectedAvatarFile(null);
       setAvatarPreview('');
-      toast.success('Avatar updated!');
+      toast.success(t('edit_profile.avatar_success'));
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to update avatar.');
+      toast.error(err?.response?.data?.detail || t('edit_profile.avatar_error'));
     } finally {
       setAvatarLoading(false);
     }
@@ -91,13 +93,13 @@ const EditProfile = () => {
 
   const handleNameSubmit = async (e) => {
     e.preventDefault();
-    if (!fullName.trim()) { toast.error('Name cannot be empty.'); return; }
+    if (!fullName.trim()) { toast.error(t('edit_profile.name_empty')); return; }
     setNameLoading(true);
     try {
       await updateProfile({ full_name: fullName.trim(), avatar_url: profile?.avatar_url });
-      toast.success('Name updated!');
+      toast.success(t('edit_profile.name_success'));
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to update name.');
+      toast.error(err?.response?.data?.detail || t('edit_profile.name_error'));
     } finally {
       setNameLoading(false);
     }
@@ -106,16 +108,16 @@ const EditProfile = () => {
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     if (!newEmail.trim() || newEmail === profile?.email) {
-      toast.error('Please enter a different email address.');
+      toast.error(t('edit_profile.email_same'));
       return;
     }
     setEmailLoading(true);
     try {
       await authService.requestEmailChange(newEmail.trim());
       setEmailSent(true);
-      toast.success(`Verification link sent to ${newEmail}`);
+      toast.success(t('edit_profile.email_success'));
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to send verification email.');
+      toast.error(err?.response?.data?.detail || t('edit_profile.email_error'));
     } finally {
       setEmailLoading(false);
     }
@@ -123,15 +125,15 @@ const EditProfile = () => {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    if (pwForm.next !== pwForm.confirm) { toast.error('New passwords do not match.'); return; }
-    if (pwForm.next.length < 6) { toast.error('Password must be at least 6 characters.'); return; }
+    if (pwForm.next !== pwForm.confirm) { toast.error(t('edit_profile.passwords_mismatch')); return; }
+    if (pwForm.next.length < 6) { toast.error(t('edit_profile.password_too_short')); return; }
     setPwLoading(true);
     try {
       await authService.changePassword(pwForm.current, pwForm.next);
-      toast.success('Password changed successfully!');
+      toast.success(t('edit_profile.password_success'));
       setPwForm({ current: '', next: '', confirm: '' });
     } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Failed to change password.');
+      toast.error(err?.response?.data?.detail || t('edit_profile.password_error'));
     } finally {
       setPwLoading(false);
     }
@@ -170,17 +172,17 @@ const EditProfile = () => {
           className="flex items-center gap-2 text-sm font-semibold text-primary hover:text-orange-600 transition-colors mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Profile
+          {t('edit_profile.back')}
         </button>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">Edit Profile</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('edit_profile.title')}</h1>
 
         <div className="space-y-6">
 
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center gap-2 mb-5">
               <Camera className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-bold text-gray-900">Profile Photo</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('edit_profile.save_photo')}</h2>
             </div>
             <div className="flex flex-col items-center gap-4">
               <AvatarUploader
@@ -198,7 +200,7 @@ const EditProfile = () => {
                   className="flex items-center gap-2 bg-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-orange-600 transition disabled:opacity-60"
                 >
                   {avatarLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  {avatarLoading ? 'Saving...' : 'Save Photo'}
+                  {avatarLoading ? t('edit_profile.saving') : t('edit_profile.save_photo')}
                 </button>
               )}
               {!selectedAvatarFile && (
@@ -210,21 +212,21 @@ const EditProfile = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center gap-2 mb-5">
               <User className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-bold text-gray-900">Display Name</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('edit_profile.full_name')}</h2>
             </div>
             <form onSubmit={handleNameSubmit} className="space-y-4">
-              <Field label="Full Name" icon={null}>
+              <Field label={t('edit_profile.full_name')} icon={null}>
                 <input
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className={inputCls}
-                  placeholder="Your name"
+                  placeholder={t('edit_profile.your_name')}
                   required
                 />
               </Field>
               <SaveButton loading={nameLoading}>
-                {nameLoading ? 'Saving...' : 'Save Name'}
+                {nameLoading ? t('edit_profile.saving') : t('edit_profile.save_name')}
               </SaveButton>
             </form>
           </div>
@@ -232,16 +234,16 @@ const EditProfile = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center gap-2 mb-5">
               <Mail className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-bold text-gray-900">Email Address</h2>
+              <h2 className="text-lg font-bold text-gray-900">{t('edit_profile.email_section')}</h2>
             </div>
 
             <div className="mb-4 rounded-md bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-600">
-              Current email: <span className="font-semibold text-gray-900">{profile?.email}</span>
+              {t('edit_profile.current_email')}: <span className="font-semibold text-gray-900">{profile?.email}</span>
             </div>
 
             {emailSent ? (
               <div className="rounded-md border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-700">
-                <p className="font-semibold mb-1">✓ Verification email sent!</p>
+                <p className="font-semibold mb-1">✓ {t('edit_profile.email_success')}</p>
                 <p>Check your inbox at <strong>{newEmail}</strong> and click the link to confirm the change.</p>
                 <button
                   onClick={() => { setEmailSent(false); setNewEmail(''); }}
@@ -252,7 +254,7 @@ const EditProfile = () => {
               </div>
             ) : (
               <form onSubmit={handleEmailSubmit} className="space-y-4">
-                <Field label="New Email Address" icon={null}>
+                <Field label={t('edit_profile.new_email')} icon={null}>
                   <input
                     type="email"
                     value={newEmail}
@@ -267,38 +269,48 @@ const EditProfile = () => {
                   change after you click that link.
                 </p>
                 <SaveButton loading={emailLoading}>
-                  {emailLoading ? 'Sending...' : 'Send Verification Link'}
+                  {emailLoading ? t('edit_profile.sending') : t('edit_profile.send_verification')}
                 </SaveButton>
               </form>
             )}
           </div>
 
           <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <KeyRound className="w-5 h-5 text-orange-500" />
-              <h2 className="text-lg font-bold text-gray-900">Change Password</h2>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-orange-500" />
+                <h2 className="text-lg font-bold text-gray-900">
+                  {t('edit_profile.change_password')}
+                </h2>
+              </div>
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-primary hover:text-orange-600 hover:underline transition-colors"
+              >
+                {t('edit_profile.forgot_password_link')}
+              </Link>
             </div>
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <PasswordInput
                 field="current"
-                label="Current Password"
+                label={t('edit_profile.current_password')}
                 value={pwForm.current}
                 onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })}
               />
               <PasswordInput
                 field="next"
-                label="New Password"
+                label={t('edit_profile.new_password')}
                 value={pwForm.next}
                 onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })}
               />
               <PasswordInput
                 field="confirm"
-                label="Confirm New Password"
+                label={t('edit_profile.confirm_password')}
                 value={pwForm.confirm}
                 onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
               />
               <SaveButton loading={pwLoading}>
-                {pwLoading ? 'Saving...' : 'Change Password'}
+                {pwLoading ? t('edit_profile.saving') : t('edit_profile.change_password_btn')}
               </SaveButton>
             </form>
           </div>

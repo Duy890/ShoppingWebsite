@@ -70,11 +70,10 @@ const Home = () => {
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
 
   const brandLogos = [
-    { name: "Samsung", url: "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg" },
+    { name: "Samsung", url: "https://upload.wikimedia.org/wikipedia/commons/f/f6/Samsung_icon.svg" },
     { name: "Apple", url: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" },
-    { name: "Amazon", url: "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" },
     { name: "Sony", url: "https://upload.wikimedia.org/wikipedia/commons/c/ca/Sony_logo.svg" },
-    { name: "Bose", url: "https://upload.wikimedia.org/wikipedia/commons/2/2a/Bose_logo.svg" },
+    { name: "Bose", url: "https://upload.wikimedia.org/wikipedia/commons/0/0c/Bose_logo.svg" },
     { name: "Dell", url: "https://upload.wikimedia.org/wikipedia/commons/4/48/Dell_Logo.svg" }
   ];
 
@@ -141,16 +140,16 @@ const Home = () => {
       {/* Brand Logos Bar */}
       <section className="py-12 border-b border-gray-100 bg-gray-50/50">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-wrap items-center justify-center gap-12 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
+          <div className="flex flex-wrap items-center justify-center gap-12 opacity-70 hover:opacity-100 transition-all duration-500">
             {brandLogos.map((brand, i) => (
               <button
                 key={i}
                 type="button"
                 onClick={() => handleBrandClick(brand.name)}
-                className="h-8 w-auto cursor-pointer overflow-hidden rounded transition hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary"
+                className="h-10 w-auto max-w-[120px] cursor-pointer overflow-hidden rounded transition hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-primary"
                 aria-label={t('home.brand_logo_aria', { brand: brand.name })}
               >
-                <img src={brand.url} alt={brand.name} className="h-8 w-auto object-contain" />
+                <img src={brand.url} alt={brand.name} className="h-10 w-auto object-contain" />
               </button>
             ))}
           </div>

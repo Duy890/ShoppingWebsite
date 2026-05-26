@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Heart, ShoppingCart, ChevronLeft } from 'lucide-react';
 import { formatPrice } from '../utils/formatPrice';
 import { productService } from '../services/productService';
@@ -8,6 +9,7 @@ import { useAuth } from '../hooks/useAuth';
 import StarRating from '../components/StarRating';
 
 const Wishlist = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { addToCart } = useCart();
@@ -71,26 +73,26 @@ const Wishlist = () => {
             className="flex items-center gap-2 text-blue-600 mb-4 hover:text-blue-700"
           >
             <ChevronLeft className="w-5 h-5" />
-            Back
+            {t('edit_profile.back')}
           </button>
           <div className="flex items-center gap-3 mb-4">
             <Heart className="w-8 h-8 text-red-600 fill-red-600" />
-            <h1 className="text-3xl font-bold text-gray-900">My Wishlist</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t('wishlist.title')}</h1>
           </div>
-          <p className="text-gray-600">{items.length} items saved</p>
+          <p className="text-gray-600">{items.length} {t('order_tracking.items')}</p>
         </div>
 
         {/* Content */}
         {items.length === 0 ? (
           <div className="bg-white rounded-lg p-12 text-center space-y-4">
             <Heart className="w-16 h-16 text-gray-300 mx-auto" />
-            <h2 className="text-2xl font-semibold text-gray-900">Your wishlist is empty</h2>
-            <p className="text-gray-600">Start adding items to save for later</p>
+            <h2 className="text-2xl font-semibold text-gray-900">{t('wishlist.empty_title')}</h2>
+            <p className="text-gray-600">{t('wishlist.empty_desc')}</p>
             <button
               onClick={() => navigate('/products')}
               className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 inline-block mt-4"
             >
-              Browse Products
+              {t('wishlist.browse_products')}
             </button>
           </div>
         ) : (
@@ -106,7 +108,7 @@ const Wishlist = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-300">
-                      No Image
+                      {t('product_detail.no_image')}
                     </div>
                   )}
                   <button
@@ -134,14 +136,14 @@ const Wishlist = () => {
                       onClick={() => navigate(`/product/${item.product.id}`)}
                       className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-200 transition"
                     >
-                      View Details
+                      {t('product_detail.back_to_products')}
                     </button>
                     <button
                       onClick={() => handleAddToCart(item.product)}
                       className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      Add to Cart
+                      {t('wishlist.add_to_cart')}
                     </button>
                   </div>
                 </div>
