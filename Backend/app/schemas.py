@@ -173,6 +173,23 @@ class ProductUpdate(BaseModel):
     embedding: Optional[List[float]] = None
 
 
+class ProductImageRead(BaseModel):
+    id: str
+    product_id: str
+    url: str
+    alt_text: Optional[str] = ""
+    is_primary: bool = False
+    sort_order: int = 0
+    model_config = {"from_attributes": True}
+
+
+class ProductImageCreate(BaseModel):
+    url: str
+    alt_text: Optional[str] = ""
+    is_primary: bool = False
+    sort_order: int = 0
+
+
 class ProductRead(ProductBase):
     id: str
     created_at: datetime
@@ -180,6 +197,8 @@ class ProductRead(ProductBase):
     category: Optional[CategoryRead] = None
     reviews: List["ReviewRead"] = []
     variants: List["ProductVariantRead"] = []
+    specifications: List["ProductSpecificationRead"] = []
+    product_images: List[ProductImageRead] = []
 
     model_config = {"from_attributes": True}
 
@@ -219,6 +238,7 @@ class ProductSpecificationBase(BaseModel):
     group_name: str
     spec_key: str
     spec_value: Optional[str] = None
+    unit: Optional[str] = None
     display_order: int = 0
 
 
@@ -270,6 +290,7 @@ class ProductSpecificationUpdate(BaseModel):
 class ProductSpecificationRead(ProductSpecificationBase):
     id: str
     product_id: str
+    unit: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -450,6 +471,16 @@ class AdminStats(BaseModel):
     total_revenue: float
     total_users: int
 
+
+class GenerateDescriptionRequest(BaseModel):
+    product_data: dict
+
+class GenerateDescriptionResponse(BaseModel):
+    short_description: str
+    key_highlights: list[str]
+    full_description: str
+    performance_summary: str
+    seo_description: str
 
 class RecommendationItem(BaseModel):
     id: str

@@ -9,7 +9,7 @@ import requests as http_requests
 from sqlalchemy.orm import Session
 
 from . import models, repositories
-from .core.config import settings
+from .core.config import get_settings
 from .core.security import verify_password, hash_password, create_access_token as _create_access_token
 from .core.email import send_email, build_reset_password_email, build_verify_email_change_email
 
@@ -214,6 +214,7 @@ def replace_product_specifications(db: Session, product_id: str, specifications:
             "group_name": group_name,
             "spec_key": spec_key,
             "spec_value": spec.get("spec_value"),
+            "unit": spec.get("unit"),
             "display_order": spec.get("display_order", index),
         })
     return repositories.replace_product_specifications(db, product_id, normalized_specs)
@@ -545,7 +546,7 @@ async def create_reset_token_and_send_email(db: Session, email: str) -> None:
     db.add(reset_token)
     db.commit()
 
-    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
+    reset_url = f"{get_settings().FRONTEND_URL}/reset-password?token={token}"
     html = build_reset_password_email(reset_url, user.full_name or "")
     await send_email(
         to=email,
@@ -574,7 +575,7 @@ async def create_email_change_token_and_send(db: Session, user: models.User, new
     db.add(email_token)
     db.commit()
 
-    verify_url = f"{settings.FRONTEND_URL}/verify-email-change?token={token}"
+    verify_url = f"{get_settings().FRONTEND_URL}/verify-email-change?token={token}"
     html = build_verify_email_change_email(verify_url, new_email, user.full_name or "")
     await send_email(
         to=new_email,
@@ -650,11 +651,12 @@ def reset_password(db: Session, token: str, new_password: str) -> models.User:
 
 
 def create_momo_payment(amount: int, order_id: str, order_info: str) -> dict:
-    partner_code = settings.MOMO_PARTNER_CODE
-    access_key = settings.MOMO_ACCESS_KEY
-    secret_key = settings.MOMO_SECRET_KEY
-    redirect_url = settings.MOMO_REDIRECT_URL
-    ipn_url = settings.MOMO_IPN_URL
+    s = get_settings()
+    partner_code = s.MOMO_PARTNER_CODE
+    access_key = s.MOMO_ACCESS_KEY
+    secret_key = s.MOMO_SECRET_KEY
+    redirect_url = s.MOMO_REDIRECT_URL
+    ipn_url = s.MOMO_IPN_URL
     request_id = f"{order_id}_{uuid.uuid4().hex[:8]}"
     extra_data = ""
     request_type = "captureWallet"
@@ -694,7 +696,7 @@ def create_momo_payment(amount: int, order_id: str, order_info: str) -> dict:
 
     try:
         response = http_requests.post(
-            settings.MOMO_ENDPOINT,
+            s.MOMO_ENDPOINT,
             json=payload,
             timeout=30,
             headers={"Content-Type": "application/json; charset=UTF-8"},
@@ -720,8 +722,9 @@ def create_momo_payment(amount: int, order_id: str, order_info: str) -> dict:
 
 
 def verify_momo_ipn_signature(payload: dict) -> bool:
-    access_key = settings.MOMO_ACCESS_KEY
-    secret_key = settings.MOMO_SECRET_KEY
+    s = get_settings()
+    access_key = s.MOMO_ACCESS_KEY
+    secret_key = s.MOMO_SECRET_KEY
 
     raw = (
         f"accessKey={access_key}"

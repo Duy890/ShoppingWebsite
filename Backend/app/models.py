@@ -121,6 +121,7 @@ class Product(Base):
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
     specifications = relationship("ProductSpecification", back_populates="product", cascade="all, delete-orphan")
     hotspots = relationship("ProductHotspot", back_populates="product", cascade="all, delete-orphan")
+    product_images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan", order_by="ProductImage.sort_order")
     related = relationship("RelatedProduct", foreign_keys="RelatedProduct.product_id", back_populates="product", cascade="all, delete-orphan")
     wishlist_items = relationship("Wishlist", back_populates="product", cascade="all, delete-orphan")
 
@@ -184,6 +185,7 @@ class ProductSpecification(Base):
     group_name = Column(String(255), nullable=False)
     spec_key = Column(String(255), nullable=False)
     spec_value = Column(Text, nullable=True)
+    unit = Column(String(100), nullable=True)
     display_order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -359,3 +361,17 @@ class OrderStatusHistory(Base):
 
     order = relationship("Order", back_populates="status_history")
     changer = relationship("User")
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id         = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    url        = Column(Text, nullable=False)
+    alt_text   = Column(String(255), nullable=True, default="")
+    is_primary = Column(Boolean, default=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    product = relationship("Product", back_populates="product_images")

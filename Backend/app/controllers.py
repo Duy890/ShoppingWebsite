@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from . import chat_service, models, repositories, schemas, services
-from .core.config import settings
+from .core.config import get_settings
 from .core.database import get_db
 from .core.rate_limit import limiter
 from .core.security import create_access_token, decode_access_token, verify_password, hash_password
@@ -183,9 +183,9 @@ def verify_email_change(token: str, db: Session = Depends(get_db)):
     """
     try:
         services.confirm_email_change(db, token)
-        return RedirectResponse(url=f"{settings.FRONTEND_URL}/profile?email_changed=1")
+        return RedirectResponse(url=f"{get_settings().FRONTEND_URL}/profile?email_changed=1")
     except ValueError:
-        return RedirectResponse(url=f"{settings.FRONTEND_URL}/profile?email_error=1")
+        return RedirectResponse(url=f"{get_settings().FRONTEND_URL}/profile?email_error=1")
 
 
 @router.post("/auth/change-password")
@@ -418,6 +418,30 @@ def remove_product_specification(specification_id: str, current_user: models.Use
 def read_spec_templates(product_type: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_admin(current_user)
     return services.get_spec_templates(db, product_type)
+
+
+@router.get("/products/{product_id}/images", response_model=list[schemas.ProductImageRead])
+def get_product_images(product_id: str, db: Session = Depends(get_db)):
+    return repositories.get_product_images(db, product_id)
+
+
+@router.put("/admin/products/{product_id}/images", response_model=list[schemas.ProductImageRead])
+def update_product_images(
+    product_id: str,
+    images: list[schemas.ProductImageCreate],
+    db: Session = Depends(get_db),
+):
+    product = repositories.get_product(db, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    repositories.replace_product_images(db, product_id, [img.model_dump() for img in images])
+
+    primary = next((img for img in images if img.is_primary), images[0] if images else None)
+    if primary:
+        product.image_url = primary.url
+    db.commit()
+
+    return repositories.get_product_images(db, product_id)
 
 
 @router.get("/products/{product_id}/reviews", response_model=list[schemas.ReviewRead])
@@ -669,6 +693,99 @@ def revenue_monthly(current_user: models.User = Depends(get_current_user), db: S
 def revenue_yearly(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     require_admin(current_user)
     return services.get_revenue_by_year(db)
+
+
+@router.post("/admin/generate-description", response_model=schemas.GenerateDescriptionResponse)
+async def generate_product_description(
+    request: schemas.GenerateDescriptionRequest,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dùng OpenRouter để tạo mô tả sản phẩm tự động từ dữ liệu form."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    from .chatbot.openrouter_formatter import openrouter_formatter
+    import json
+
+    if not openrouter_formatter.enabled:
+        raise HTTPException(
+            status_code=503,
+            detail="AI service not configured. Set OPENROUTER_API_KEY in .env"
+        )
+
+    product_data = request.product_data
+
+    system_prompt = """You are a professional Vietnamese e-commerce copywriter specializing in electronics, gaming laptops, PCs, smartphones, and technology products.
+
+STRICT RULES:
+- ONLY use the provided product information.
+- NEVER invent specifications, benchmarks, features, ports, materials, technologies, or performance claims.
+- NEVER generate fake FPS, benchmark scores, battery life, or unsupported capabilities.
+- If information is missing, omit it naturally instead of guessing.
+- Keep technical accuracy and consistency.
+- Use natural, fluent, professional Vietnamese.
+- Optimize writing for SEO and customer readability.
+- Focus on real customer benefits instead of exaggerated marketing language.
+
+TASK:
+Generate a complete Vietnamese e-commerce product description based ONLY on the provided structured product data.
+The output must include:
+1. Short product introduction (1-2 sentences, highlight the most important feature)
+2. Key highlights in bullet points (4-6 bullets, each 10-20 words, factual only)
+3. Detailed product description (3-5 paragraphs, professional, no repetition)
+4. Gaming/performance summary if product_type is laptop or phone (empty string if not applicable)
+5. SEO meta description under 160 characters
+
+WRITING STYLE:
+- Professional, Modern, Premium, Technology-focused
+- Clear and persuasive, Human-like writing
+- Vietnamese language throughout
+
+OUTPUT FORMAT:
+Return ONLY valid JSON, no markdown fences, no explanation:
+{
+  "short_description": "",
+  "key_highlights": [],
+  "full_description": "",
+  "performance_summary": "",
+  "seo_description": ""
+}"""
+
+    user_prompt = f"PRODUCT DATA:\n{json.dumps(product_data, ensure_ascii=False, indent=2)}"
+
+    try:
+        completion = openrouter_formatter.client.chat.completions.create(
+            model=openrouter_formatter.model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.4,
+            max_tokens=2048,
+            extra_headers={
+                "HTTP-Referer": "https://techzone.vn",
+                "X-Title": "TechZone Admin",
+            },
+            timeout=45,
+        )
+        raw = completion.choices[0].message.content.strip()
+
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        if raw.endswith("```"):
+            raw = raw[:-3].strip()
+
+        result = json.loads(raw)
+        return schemas.GenerateDescriptionResponse(**result)
+
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"AI returned invalid JSON: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
 
 
 # --- Recommendations ---

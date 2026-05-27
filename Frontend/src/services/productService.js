@@ -216,4 +216,14 @@ export const productService = {
     const { data } = await api.get('/cart/recommendations');
     return data;
   },
+
+  async getProductImages(productId) {
+    const { data } = await api.get(`/products/${productId}/images`);
+    return data;
+  },
+
+  async saveProductImages(productId, images) {
+    const { data } = await api.put(`/admin/products/${productId}/images`, images);
+    return data;
+  },
 };

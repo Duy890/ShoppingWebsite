@@ -11,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .core.database import Base, engine, SessionLocal
-from .core.config import ALLOWED_ORIGINS
+from .core.config import settings
 from .core.rate_limit import limiter
 from .controllers import router
 from .core.security import hash_password
@@ -37,7 +37,7 @@ app.mount("/uploads", StaticFiles(directory=str(static_root)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS, 
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -69,6 +69,9 @@ ALLOWED_SCHEMA_COLUMNS = {
         "view_count",
         "embedding",
     },
+    "product_specifications": {
+        "unit",
+    },
 }
 
 
@@ -96,6 +99,7 @@ def get_column_definitions() -> dict[str, str]:
         "status": "status VARCHAR(255) NOT NULL DEFAULT 'active'",
         "view_count": "view_count INT NOT NULL DEFAULT 0",
         "embedding": "embedding JSON",
+        "unit": "unit VARCHAR(100) NULL",
     }
 
 def ensure_schema() -> None:
@@ -109,6 +113,7 @@ def ensure_schema() -> None:
     add_column_if_missing("products", "status", definitions["status"])
     add_column_if_missing("products", "view_count", definitions["view_count"])
     add_column_if_missing("products", "embedding", definitions["embedding"])
+    add_column_if_missing("product_specifications", "unit", definitions["unit"])
 
 
 ensure_schema()

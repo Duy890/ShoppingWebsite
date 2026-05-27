@@ -354,7 +354,41 @@ def get_products(db: Session, category_id: str | None = None, search: str | None
 
 
 def get_product(db: Session, product_id: str) -> models.Product | None:
-    return db.query(models.Product).options(joinedload(models.Product.category)).filter(models.Product.id == product_id).first()
+    return (
+        db.query(models.Product)
+        .options(
+            joinedload(models.Product.category),
+            joinedload(models.Product.variants),
+            joinedload(models.Product.specifications),
+            joinedload(models.Product.product_images),
+            joinedload(models.Product.reviews),
+        )
+        .filter(models.Product.id == product_id)
+        .first()
+    )
+
+
+def get_product_images(db: Session, product_id: str):
+    return (
+        db.query(models.ProductImage)
+        .filter(models.ProductImage.product_id == product_id)
+        .order_by(models.ProductImage.sort_order)
+        .all()
+    )
+
+
+def replace_product_images(db: Session, product_id: str, images: list[dict]):
+    db.query(models.ProductImage).filter(models.ProductImage.product_id == product_id).delete()
+    for i, img in enumerate(images):
+        db.add(models.ProductImage(
+            id=str(uuid.uuid4()),
+            product_id=product_id,
+            url=img["url"],
+            alt_text=img.get("alt_text") or "",
+            is_primary=img.get("is_primary", i == 0),
+            sort_order=i,
+        ))
+    db.flush()
 
 
 def increment_view_count(db: Session, product_id: str) -> None:

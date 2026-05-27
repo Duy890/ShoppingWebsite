@@ -11,13 +11,17 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from . import models, schemas
-from .core.config import settings
+from .core.config import get_settings
 
 
-OPENROUTER_API_KEY = settings.OPENROUTER_API_KEY or ""
+def _get_openrouter_key() -> str:
+    return get_settings().OPENROUTER_API_KEY or ""
+
+def _get_chat_model() -> str:
+    return get_settings().OPENROUTER_MODEL or "meta-llama/llama-3.1-8b-instruct"
+
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 CLASSIFIER_MODEL = "meta-llama/llama-3.1-8b-instruct"
-CHAT_MODEL = settings.OPENROUTER_MODEL or "meta-llama/llama-3.1-8b-instruct"
 
 VALID_INTENTS = {
     "product_search",
@@ -383,15 +387,17 @@ tu van gaming, hoi chinh sach, kiem tra don hang.
 def call_openrouter(
     system_prompt: str,
     messages: list[dict[str, str]],
-    model: str = CHAT_MODEL,
+    model: str | None = None,
     max_tokens: int = 600,
     temperature: float = 0.7,
 ) -> str:
+    resolved_model = model or _get_chat_model()
+    resolved_key = _get_openrouter_key()
     try:
         request = Request(
             OPENROUTER_URL,
             data=json.dumps({
-                "model": model,
+                "model": resolved_model,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "messages": [
@@ -400,7 +406,7 @@ def call_openrouter(
                 ],
             }).encode("utf-8"),
             headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Authorization": f"Bearer {resolved_key}",
                 "Content-Type": "application/json",
                 "HTTP-Referer": "https://eshop.local",
             },
@@ -445,7 +451,7 @@ def _product_cards(products: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def process_chat_request(payload: schemas.ChatRequest, db: Session) -> schemas.ChatResponse:
-    if not OPENROUTER_API_KEY:
+    if not _get_openrouter_key():
         return schemas.ChatResponse(
             intent="unavailable",
             entities={},

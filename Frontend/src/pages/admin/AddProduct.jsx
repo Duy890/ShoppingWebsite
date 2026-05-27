@@ -4,6 +4,7 @@ import { useProducts } from '../../hooks/useProducts';
 import { productService } from '../../services/productService';
 import SpecificationEditor from '../../components/SpecificationEditor';
 import AdminVariantManager from '../../components/AdminVariantManager';
+import AIDescriptionGenerator from '../../components/AIDescriptionGenerator';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 
 const CATEGORY_TYPE_MAP = {
@@ -96,6 +97,8 @@ const AddProduct = () => {
   const [specifications, setSpecifications] = useState([makeEmptySpec()]);
   const [imagePreview, setImagePreview] = useState('');
   const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [productImages, setProductImages] = useState([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState(null);
 
   const conflict = useMemo(
@@ -132,6 +135,13 @@ const AddProduct = () => {
     }
   }, [formData.category_id, categories]);
 
+  const handleApplyAI = (result) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...(result.short_description !== undefined && { description: result.full_description || result.short_description }),
+    }));
+  };
+
   const handleChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setFormData((prev) => ({
@@ -165,6 +175,35 @@ const AddProduct = () => {
     setSelectedImageFile(file);
     setFormData({ ...formData, image_url: '' });
     setImagePreview(previewUrl);
+  };
+
+  const handleAddImage = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      setUploadingImages(true);
+      try {
+        const result = await productService.uploadProductImage(file);
+        setProductImages(prev => [...prev, {
+          url: result.image_url,
+          alt_text: '',
+          is_primary: prev.length === 0,
+          sort_order: prev.length,
+        }]);
+      } catch (err) {
+        setError('Failed to upload image: ' + err.message);
+      } finally {
+        setUploadingImages(false);
+      }
+    };
+    input.click();
+  };
+
+  const handleRemoveImage = (index) => {
+    setProductImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
@@ -218,6 +257,10 @@ const AddProduct = () => {
             display_order: index,
           }))
         );
+      }
+
+      if (productImages.length > 0) {
+        await productService.saveProductImages(product.id, productImages);
       }
 
       navigate('/admin/products');
@@ -416,6 +459,38 @@ const AddProduct = () => {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Additional Images</label>
+            <button
+              type="button"
+              onClick={handleAddImage}
+              disabled={uploadingImages}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              {uploadingImages ? 'Uploading...' : '+ Add Image'}
+            </button>
+            {productImages.length > 0 && (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {productImages.map((img, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={img.url}
+                      alt={img.alt_text || ''}
+                      className="h-20 w-full object-cover rounded border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(i)}
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <select
               name="status"
@@ -442,6 +517,13 @@ const AddProduct = () => {
             Featured Product (hiển thị nổi bật trên trang chủ)
           </label>
         </div>
+
+        <AIDescriptionGenerator
+          formData={formData}
+          variants={variants}
+          specifications={specifications}
+          onApply={handleApplyAI}
+        />
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>

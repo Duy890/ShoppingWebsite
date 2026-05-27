@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-from dotenv import load_dotenv
-load_dotenv()
 from typing import Any
 
 import openai  # already in project requirements
@@ -14,13 +11,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Config — reads from pydantic Settings (which loads .env automatically)
 # ---------------------------------------------------------------------------
-from app.core.config import settings as _app_settings
-
-_API_KEY    = _app_settings.OPENROUTER_API_KEY or ""
-_MODEL      = _app_settings.OPENROUTER_MODEL
-_MAX_TOKENS = _app_settings.OPENROUTER_MAX_TOKENS
-_SITE_URL   = _app_settings.SITE_URL
-_SITE_NAME  = _app_settings.SITE_NAME
+from app.core.config import get_settings
 
 _MAX_HISTORY_TURNS = 6          # keep last N user+assistant pairs
 _MAX_SPEC_CHARS    = 120        # truncate very long spec values
@@ -357,24 +348,45 @@ class OpenRouterFormatter:
     """Advanced LLM formatter using OpenRouter via the openai SDK."""
 
     def __init__(self) -> None:
-        self.api_key = _API_KEY
-        self.model   = _MODEL
-        self.enabled = bool(self.api_key)
-        self.client: openai.OpenAI | None = None
+        self._cached_api_key: str | None = None
+        self._cached_client: openai.OpenAI | None = None
 
-        if self.enabled:
-            # OpenRouter is OpenAI-API-compatible — just point base_url at it.
-            # Extra headers (Referer, X-Title) are passed per-request via
-            # extra_headers so we never need to subclass the client.
-            self.client = openai.OpenAI(
-                api_key=self.api_key,
+    @property
+    def api_key(self) -> str:
+        return (get_settings().OPENROUTER_API_KEY or "").strip()
+
+    @property
+    def model(self) -> str:
+        return get_settings().OPENROUTER_MODEL
+
+    @property
+    def max_tokens(self) -> int:
+        return get_settings().OPENROUTER_MAX_TOKENS
+
+    @property
+    def site_url(self) -> str:
+        return get_settings().SITE_URL
+
+    @property
+    def site_name(self) -> str:
+        return get_settings().SITE_NAME
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.api_key)
+
+    @property
+    def client(self) -> openai.OpenAI | None:
+        if not self.enabled:
+            return None
+        current_key = self.api_key
+        if self._cached_client is None or self._cached_api_key != current_key:
+            self._cached_api_key = current_key
+            self._cached_client = openai.OpenAI(
+                api_key=current_key,
                 base_url="https://openrouter.ai/api/v1",
             )
-        else:
-            logger.warning(
-                "OpenRouterFormatter: OPENROUTER_API_KEY not set — "
-                "formatter disabled, will return fallback messages."
-            )
+        return self._cached_client
 
     # ------------------------------------------------------------------
     def format_response(
@@ -403,11 +415,12 @@ class OpenRouterFormatter:
         -------
         Formatted markdown string, or original_message on failure.
         """
-        if not self.enabled or self.client is None:
+        client = self.client
+        if not self.enabled or client is None:
             return original_message
 
         system_prompt = _INTENT_SYSTEM_PROMPTS.get(intent, _DEFAULT_SYSTEM_PROMPT)
-        system_prompt = system_prompt.replace("{site_name}", _SITE_NAME)
+        system_prompt = system_prompt.replace("{site_name}", self.site_name)
 
         user_prompt = _build_user_prompt(
             intent, entities, data, original_message, user_message
@@ -418,14 +431,14 @@ class OpenRouterFormatter:
         messages.append({"role": "user", "content": user_prompt})
 
         try:
-            completion = self.client.chat.completions.create(
+            completion = client.chat.completions.create(
                 model=self.model,
                 messages=messages,          # type: ignore[arg-type]
                 temperature=0.3,
-                max_tokens=_MAX_TOKENS,
+                max_tokens=self.max_tokens,
                 extra_headers={
-                    "HTTP-Referer": _SITE_URL,
-                    "X-Title":      _SITE_NAME,
+                    "HTTP-Referer": self.site_url,
+                    "X-Title":      self.site_name,
                 },
                 timeout=30,
             )

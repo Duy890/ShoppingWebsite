@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 // import { useProducts } from '../../hooks/useProducts';
 import { useEditProduct } from '../../hooks/useEditProduct';
 import AdminVariantManager from '../../components/AdminVariantManager';
+import AIDescriptionGenerator from '../../components/AIDescriptionGenerator';
 
 const EditProduct = () => {
   const navigate = useNavigate();
@@ -41,6 +42,23 @@ const EditProduct = () => {
   const brand = formData.brand;
   const productLine = formData.product_line;
   const productName = formData.name;
+
+  const variants = formData.variants || [];
+  const specifications = (formData.specs || [])
+    .filter((s) => !s.isGroup && s.spec_key)
+    .map((s) => ({
+      group_name: s.group_name || '',
+      spec_key: s.spec_key,
+      spec_value: s.spec_value || '',
+    }));
+
+  const handleApplyAI = (result) => {
+    setFormData((prev) => ({
+      ...prev,
+      ...(result.full_description  && { description: result.full_description }),
+      ...(result.short_description && { short_description: result.short_description }),
+    }));
+  };
 
   const breadcrumbPreview = [
     { name: 'Trang chủ', url: '/' },
@@ -217,6 +235,19 @@ const EditProduct = () => {
               </div>
             </div>
 
+            <AIDescriptionGenerator
+              formData={{
+                name: formData.name,
+                brand: formData.brand,
+                product_type: formData.product_type,
+                price: formData.price,
+                sku: formData.sku,
+              }}
+              variants={variants}
+              specifications={specifications}
+              onApply={handleApplyAI}
+            />
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Short Description</label>
               <input
@@ -314,8 +345,6 @@ const EditProduct = () => {
                       <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase w-48">Group/Section</th>
                       <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase">Spec Name</th>
                       <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase w-48">Value</th>
-                      <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase w-24">Unit</th>
-                      <th className="text-left p-3 text-xs font-medium text-gray-500 uppercase w-32">Order</th>
                       <th className="text-center p-3 text-xs font-medium text-gray-500 uppercase w-24">Actions</th>
                     </tr>
                   </thead>
@@ -324,21 +353,13 @@ const EditProduct = () => {
                       <tr key={index} className={`border-b border-gray-100 ${spec.isGroup ? 'bg-primary/5' : 'hover:bg-gray-50'}`}>
                         {spec.isGroup ? (
                           <>
-                            <td colSpan="4" className="p-3">
+                            <td colSpan="3" className="p-3">
                               <input
                       onClick={addSpecItem}
                                 value={spec.group_name || ''}
                                 onChange={(e) => updateSpecField(index, 'group_name', e.target.value)}
                                 placeholder="Group Name (e.g., Display, Processor, Camera)"
                                 className="w-full px-3 py-2 border border-primary/30 rounded-md text-sm font-medium"
-                              />
-                            </td>
-                            <td className="p-3">
-                              <input
-                                type="number"
-                                value={spec.display_order}
-                                onChange={(e) => updateSpecField(index, 'display_order', parseInt(e.target.value) || 0)}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                               />
                             </td>
                             <td className="p-3 text-center">
@@ -390,23 +411,6 @@ const EditProduct = () => {
                                 placeholder="Value"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                 required
-                              />
-                            </td>
-                            <td className="p-3">
-                              <input
-                                type="text"
-                                value={spec.unit || ''}
-                                onChange={(e) => updateSpecField(index, 'unit', e.target.value)}
-                                placeholder="Unit"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                              />
-                            </td>
-                            <td className="p-3">
-                              <input
-                                type="number"
-                                value={spec.display_order}
-                                onChange={(e) => updateSpecField(index, 'display_order', parseInt(e.target.value) || 0)}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
                               />
                             </td>
                             <td className="p-3 text-center">
