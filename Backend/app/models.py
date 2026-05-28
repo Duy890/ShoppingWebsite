@@ -21,6 +21,12 @@ class User(Base):
     avatar_url = Column(Text, nullable=True)
     is_admin = Column(Boolean, default=False)
     role = Column(String(255), default="user", nullable=False)
+    mfa_secret = Column(Text, nullable=True)
+    mfa_enabled = Column(Boolean, default=False)
+    last_login_at = Column(DateTime, nullable=True)
+    last_login_ip = Column(String(45), nullable=True)
+    failed_login_attempts = Column(Integer, default=0)
+    locked_until = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     carts = relationship("Cart", back_populates="user", cascade="all, delete-orphan")
@@ -28,6 +34,67 @@ class User(Base):
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
     wishlist_items = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    audit_logs = relationship("AuditLog", back_populates="user")
+    login_history = relationship("LoginHistory", back_populates="user")
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(128), nullable=False, index=True)
+    device_info = Column(String(500), nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    revoked = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="refresh_tokens")
+
+
+class MfaChallenge(Base):
+    __tablename__ = "mfa_challenges"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    jti = Column(String(128), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    action = Column(String(255), nullable=False)
+    resource_type = Column(String(255), nullable=True)
+    resource_id = Column(String(255), nullable=True)
+    details = Column(JSON, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="audit_logs")
+
+
+class LoginHistory(Base):
+    __tablename__ = "login_history"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    ip_address = Column(String(45), nullable=True)
+    user_agent = Column(String(500), nullable=True)
+    success = Column(Boolean, nullable=False)
+    fail_reason = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="login_history")
 
 
 class Address(Base):
@@ -46,6 +113,33 @@ class Address(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="addresses")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    token = Column(String(255), unique=True, index=True, nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
+
+
+class EmailChangeToken(Base):
+    __tablename__ = "email_change_tokens"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    token = Column(String(255), unique=True, index=True, nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    new_email = Column(String(255), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    used = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")
 
 
 class Category(Base):
@@ -94,6 +188,7 @@ class Product(Base):
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
     specifications = relationship("ProductSpecification", back_populates="product", cascade="all, delete-orphan")
     hotspots = relationship("ProductHotspot", back_populates="product", cascade="all, delete-orphan")
+    product_images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan", order_by="ProductImage.sort_order")
     related = relationship("RelatedProduct", foreign_keys="RelatedProduct.product_id", back_populates="product", cascade="all, delete-orphan")
     wishlist_items = relationship("Wishlist", back_populates="product", cascade="all, delete-orphan")
 
@@ -157,6 +252,7 @@ class ProductSpecification(Base):
     group_name = Column(String(255), nullable=False)
     spec_key = Column(String(255), nullable=False)
     spec_value = Column(Text, nullable=True)
+    unit = Column(String(100), nullable=True)
     display_order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -332,3 +428,17 @@ class OrderStatusHistory(Base):
 
     order = relationship("Order", back_populates="status_history")
     changer = relationship("User")
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id         = Column(String(36), primary_key=True, default=generate_uuid)
+    product_id = Column(String(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    url        = Column(Text, nullable=False)
+    alt_text   = Column(String(255), nullable=True, default="")
+    is_primary = Column(Boolean, default=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    product = relationship("Product", back_populates="product_images")

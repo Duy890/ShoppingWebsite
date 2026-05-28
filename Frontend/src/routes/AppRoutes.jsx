@@ -24,12 +24,14 @@ import AddProduct from '../pages/admin/AddProduct';
 import EditProduct from '../pages/admin/EditProduct';
 import Categories from '../pages/admin/Categories';
 import Orders from '../pages/admin/Orders';
+import SpecTemplates from '../pages/admin/SpecTemplates';
 import NotFound from '../pages/NotFound';
 import ServerError from '../pages/ServerError';
 import Maintenance from '../pages/Maintenance';
 import AccessDenied from '../pages/AccessDenied';
 import OrderTracking from '../pages/OrderTracking';
 import PaymentResult from '../pages/PaymentResult';
+import VerifyEmailChange from '../pages/VerifyEmailChange';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -116,7 +118,7 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
-          <Route path="/verify-email-change" element={<div />} />
+          <Route path="/verify-email-change" element={<VerifyEmailChange />} />
           <Route
             path="/wishlist"
             element={
@@ -144,6 +146,7 @@ const AppRoutes = () => {
           <Route path="products/edit/:id" element={<EditProduct />} />
           <Route path="categories" element={<Categories />} />
           <Route path="orders" element={<Orders />} />
+          <Route path="spec-templates" element={<SpecTemplates />} />
         </Route>
 
         {/* Catch-all route - 404 */}

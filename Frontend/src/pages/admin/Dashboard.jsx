@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Package, ShoppingCart, Coins, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { adminService } from '../../services/adminService';
 import { formatPrice } from '../../utils/formatPrice';
 
@@ -27,7 +28,7 @@ const RevenueBarChart = ({ data }) => {
             <div key={item.month} className="flex flex-1 flex-col items-center justify-end gap-2">
               <div className="relative group flex w-full items-end justify-center h-56">
                 <div
-                  className="w-full max-w-9 rounded-t bg-orange-500 transition-colors group-hover:bg-orange-600"
+                  className="w-full max-w-9 rounded-t bg-primary transition-colors group-hover:bg-gray-900"
                   style={{ height }}
                 />
                 <div className="pointer-events-none absolute bottom-full mb-2 hidden rounded-lg bg-gray-900 px-2 py-1 text-[10px] font-bold text-white group-hover:block">
@@ -75,10 +76,10 @@ const RevenueLineChart = ({ data }) => {
             strokeDasharray="4 4"
           />
         ))}
-        <path d={path} fill="none" stroke="#f97316" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={path} fill="none" stroke="#ff4d00" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
         {points.map((point) => (
           <g key={point.year}>
-            <circle cx={point.x} cy={point.y} r="6" fill="#f97316" />
+            <circle cx={point.x} cy={point.y} r="6" fill="#ff4d00" />
             <text x={point.x} y={height - 10} textAnchor="middle" className="fill-gray-500 text-xs font-semibold">
               {point.year}
             </text>
@@ -89,7 +90,7 @@ const RevenueLineChart = ({ data }) => {
         ))}
       </svg>
       <div className="mt-1 flex items-center gap-2 text-xs font-semibold text-gray-500">
-        <span className="h-3 w-3 rounded-full bg-orange-500" />
+        <span className="h-3 w-3 rounded-full bg-primary" />
         Revenue
       </div>
     </div>
@@ -97,6 +98,7 @@ const RevenueLineChart = ({ data }) => {
 };
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalOrders: 0,
@@ -169,74 +171,76 @@ const Dashboard = () => {
 
   const statCards = [
     {
-      title: 'Total Products',
+      title: t('admin.products'),
       value: stats.totalProducts,
       icon: Package,
-      color: 'bg-blue-500',
     },
     {
-      title: 'Total Orders',
+      title: t('admin.orders'),
       value: stats.totalOrders,
       icon: ShoppingCart,
-      color: 'bg-green-500',
     },
     {
-      title: 'Total Revenue',
+      title: t('admin.revenue'),
       value: formatPrice(stats.totalRevenue),
       icon: Coins,
-      color: 'bg-yellow-500',
     },
     {
       title: 'Total Users',
       value: stats.totalUsers,
       icon: Users,
-      color: 'bg-purple-500',
     },
   ];
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2 text-primary">
+            <div className="h-1 w-8 bg-primary rounded-full" />
+            <span className="text-xs font-black uppercase tracking-widest">Overview</span>
+          </div>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">{t('admin.dashboard')}</h1>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         {statCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-md p-6">
+          <div key={index} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className={`${stat.color} p-3 rounded-lg`}>
-                <stat.icon className="w-6 h-6 text-white" />
+              <div className="bg-primary/10 p-3 rounded-2xl">
+                <stat.icon className="w-6 h-6 text-primary" />
               </div>
             </div>
-            <h3 className="text-gray-600 text-sm font-medium mb-1">{stat.title}</h3>
-            <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+            <h3 className="text-gray-500 text-xs font-black uppercase tracking-widest mb-2">{stat.title}</h3>
+            <p className="text-3xl font-black text-gray-900">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-md p-8 mt-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mt-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900">Revenue Overview</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t('admin.revenue')}</h2>
           <div className="flex gap-2">
             <button
               onClick={() => setActiveChart('month')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 activeChart === 'month'
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              By Month
+              {t('admin.by_month')}
             </button>
             <button
               onClick={() => setActiveChart('year')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 activeChart === 'year'
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              By Year
+              {t('admin.by_year')}
             </button>
           </div>
         </div>
@@ -254,7 +258,7 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-bold text-gray-800 mb-4">Top Searches</h3>
+          <h3 className="font-bold text-gray-800 mb-4">{t('admin.top_searches')}</h3>
           <div className="space-y-2">
             {topSearches.slice(0, 8).map((s, i) => (
               <div key={i} className="flex justify-between text-sm">
@@ -263,25 +267,25 @@ const Dashboard = () => {
               </div>
             ))}
             {topSearches.length === 0 && (
-              <p className="text-sm text-gray-400">No data yet</p>
+              <p className="text-sm text-gray-400">{t('admin.no_data')}</p>
             )}
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-bold text-gray-800 mb-4">Most Viewed Products</h3>
+          <h3 className="font-bold text-gray-800 mb-4">{t('admin.top_viewed')}</h3>
           <div className="space-y-2">
             {topViewed.slice(0, 8).map((p, i) => (
               <div key={p.id} className="flex justify-between text-sm">
                 <span className="text-gray-700 truncate max-w-[160px]">{p.name}</span>
-                <span className="text-gray-400 font-mono">{p.view_count} views</span>
+                <span className="text-gray-400 font-mono">{p.view_count} {t('admin.views')}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-bold text-gray-800 mb-4">Cart Abandonment</h3>
+          <h3 className="font-bold text-gray-800 mb-4">{t('admin.cart_abandonment')}</h3>
           <div className="space-y-2">
             {abandonment.slice(0, 8).map((p, i) => (
               <div key={p.id} className="flex justify-between text-sm">
@@ -305,3 +309,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+

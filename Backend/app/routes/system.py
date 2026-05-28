@@ -1,7 +1,10 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import text
 from ..core.database import SessionLocal, engine
+from ..deps import get_current_user
+from .. import models
+from ..state import maintenance_enabled
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -49,18 +52,28 @@ async def system_status():
         "status": "ok",
         "database": db_status,
         "api": "running",
-        "maintenance": False,
+        "maintenance": maintenance_enabled,
     }
 
 
 @router.post("/maintenance")
-async def toggle_maintenance(enabled: bool = False):
-    """
-    Toggle maintenance mode (admin only).
-    When enabled, API returns 503 Service Unavailable.
-    """
-    # TODO: Add admin authentication check
+async def toggle_maintenance(
+    enabled: bool = False,
+    current_user: models.User = Depends(get_current_user),
+):
+    """Toggle maintenance mode — admin only."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    global maintenance_enabled
+    maintenance_enabled = enabled
     return {
         "status": "maintenance mode updated",
-        "maintenance": enabled,
+        "maintenance": maintenance_enabled,
     }
+
+
+@router.get("/maintenance-status")
+async def get_maintenance_status():
+    """Public endpoint to check maintenance mode."""
+    return {"maintenance": maintenance_enabled}

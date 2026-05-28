@@ -36,37 +36,50 @@ export const useEditProduct = () => {
       try {
         setLoading(true);
         const product = await productService.getProductById(id);
-        const specs = [];
-        const groupedSpecs = {};
 
-        if (product.product_specs && product.product_specs.length > 0) {
-          product.product_specs.forEach((spec) => {
-            const group = spec.group_name || 'Ungrouped';
-            if (!groupedSpecs[group]) {
-              groupedSpecs[group] = [];
-            }
-            groupedSpecs[group].push({
+        let product_specs_raw = {};
+        try {
+          const specsData = await productService.getProductSpecifications(id);
+          product_specs_raw = specsData || {};
+        } catch (_) {
+          product_specs_raw = {};
+        }
+
+        const specs = [];
+        Object.entries(product_specs_raw).forEach(([groupName, items], groupIndex) => {
+          if (!Array.isArray(items)) return;
+
+          specs.push({
+            isGroup: true,
+            group_name: groupName,
+            display_order: groupIndex * 100,
+          });
+
+          items.forEach((item, itemIndex) => {
+            specs.push({
               isGroup: false,
-              group_name: spec.group_name,
-              spec_key: spec.spec_key,
-              spec_value: spec.spec_value,
-              unit: spec.unit,
-              display_order: spec.display_order,
-              id: spec.id,
+              group_name: groupName,
+              spec_key: item.key ?? item.spec_key ?? '',
+              spec_value: item.value ?? item.spec_value ?? '',
+              unit: item.unit ?? '',
+              display_order: item.display_order ?? (groupIndex * 100 + itemIndex + 1),
+              id: item.id ?? null,
             });
           });
+        });
 
-          Object.keys(groupedSpecs).forEach((groupName, groupIndex) => {
-            if (groupName !== 'Ungrouped') {
-              specs.push({
-                isGroup: true,
-                group_name: groupName,
-                display_order: groupIndex * 100,
-              });
-            }
-            groupedSpecs[groupName].forEach((spec) => specs.push(spec));
-          });
+        let productImages = [];
+        if (product.product_images && product.product_images.length > 0) {
+          productImages = product.product_images;
+        } else if (product.image_url) {
+          productImages = [{ url: product.image_url, alt_text: product.name || '', is_primary: true }];
         }
+        try {
+          const imageData = await productService.getProductImages(id);
+          if (imageData && imageData.length > 0) {
+            productImages = imageData;
+          }
+        } catch (_) {}
 
         setFormData({
           name: product.name || '',
@@ -84,8 +97,8 @@ export const useEditProduct = () => {
           status: product.status || 'active',
           variants: product.variants || [],
           specs,
-          product_specs: product.product_specs || [],
-          images: product.images || [],
+          product_specs: [],
+          images: productImages,
         });
       } catch (err) {
         setError(err.message || 'Failed to load product');
@@ -247,7 +260,6 @@ export const useEditProduct = () => {
             alt_text: '',
             sort_order: formData.images.length,
             is_primary: formData.images.length === 0,
-            hotspots: [],
           },
         ],
       });
@@ -314,31 +326,41 @@ export const useEditProduct = () => {
 
     try {
       const productSpecs = formData.specs
-        .filter((spec) => !spec.isGroup)
-        .map((spec) => ({
+        .filter((spec) => !spec.isGroup && (spec.spec_key || '').trim() !== '')
+        .map((spec, index) => ({
           group_name: spec.group_name || null,
           spec_key: spec.spec_key,
-          spec_value: spec.spec_value,
-          unit: spec.unit || null,
-          display_order: spec.display_order,
+          spec_value: spec.spec_value || '',
+          display_order: index,
         }));
 
       const updates = {
-        ...formData,
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description,
+        short_description: formData.short_description,
         price: parseFloat(formData.price) || 0,
         stock: parseInt(formData.stock, 10) || 0,
         category_id: formData.category_id || null,
-        product_specs: productSpecs,
-        variants: formData.variants.map((v) => ({
-          ...v,
-          price: parseFloat(v.price) || 0,
-          sale_price: v.sale_price ? parseFloat(v.sale_price) : null,
-          stock: parseInt(v.stock, 10) || 0,
-        })),
+        brand: formData.brand,
+        product_type: formData.product_type,
+        product_line: formData.product_line,
+        sku: formData.sku,
+        featured: formData.featured,
+        status: formData.status,
+        image_url: formData.image_url,
       };
 
-      delete updates.specs;
       await productService.updateProduct(id, updates);
+
+      if (productSpecs.length > 0) {
+        await productService.saveProductSpecifications(id, productSpecs);
+      }
+
+      if (formData.images.length > 0) {
+        await productService.saveProductImages(id, formData.images);
+      }
+
       navigate('/admin/products');
     } catch (err) {
       setError(err.message || 'Unable to update product');

@@ -299,8 +299,6 @@ def _get_all_category_ids(db: Session, category_id: str) -> list[str]:
 
 
 def get_products(db: Session, category_id: str | None = None, search: str | None = None, featured: bool | None = None, sort_by: str | None = None, product_type: str | None = None, brand: str | None = None, page: int = 1, limit: int = 20) -> tuple[list[models.Product], int]:
-    print(f"[DEBUG] get_products called with: category={category_id}, type={product_type}, brand={brand}, page={page}, limit={limit}")
-    
     query = db.query(models.Product).options(joinedload(models.Product.category))
 
     if category_id:
@@ -312,30 +310,32 @@ def get_products(db: Session, category_id: str | None = None, search: str | None
             pass
 
         if is_uuid:
-            print(f"[DEBUG] Filtering by category ID: {category_id}")
             query = query.filter(models.Product.category_id == category_id)
         else:
-            print(f"[DEBUG] Filtering by category slug: {category_id}")
             category = db.query(models.Category).filter(models.Category.slug == category_id).first()
             
             if category:
-                print(f"[DEBUG] Found category: {category.name} (id={category.id})")
                 all_category_ids = _get_all_category_ids(db, category.id)
-                print(f"[DEBUG] All category IDs (including children): {all_category_ids}")
-                print(f"[DEBUG] Product IDs in those categories: {db.query(models.Product.category_id).filter(models.Product.category_id.in_(all_category_ids)).all()}")
                 query = query.join(models.Category).filter(models.Category.id.in_(all_category_ids))
             else:
-                print(f"[DEBUG] Category slug '{category_id}' not found in database!")
                 query = query.filter(models.Product.id == None)
 
     if search:
-        query = query.filter(models.Product.name.ilike(f"%{search}%"))
+        search_value = f"%{search.strip()}%"
+        query = query.filter(
+            or_(
+                models.Product.name.ilike(search_value),
+                models.Product.brand.ilike(search_value),
+                models.Product.sku.ilike(search_value),
+                models.Product.description.ilike(search_value),
+            )
+        )
     if featured is not None:
         query = query.filter(models.Product.featured == featured)
     if product_type:
         query = query.filter(models.Product.product_type == product_type)
     if brand:
-        query = query.filter(models.Product.brand.ilike(brand))
+        query = query.filter(models.Product.brand.ilike(f"%{brand.strip()}%"))
 
     if sort_by:
         if sort_by == "price":
@@ -354,7 +354,41 @@ def get_products(db: Session, category_id: str | None = None, search: str | None
 
 
 def get_product(db: Session, product_id: str) -> models.Product | None:
-    return db.query(models.Product).options(joinedload(models.Product.category)).filter(models.Product.id == product_id).first()
+    return (
+        db.query(models.Product)
+        .options(
+            joinedload(models.Product.category),
+            joinedload(models.Product.variants),
+            joinedload(models.Product.specifications),
+            joinedload(models.Product.product_images),
+            joinedload(models.Product.reviews),
+        )
+        .filter(models.Product.id == product_id)
+        .first()
+    )
+
+
+def get_product_images(db: Session, product_id: str):
+    return (
+        db.query(models.ProductImage)
+        .filter(models.ProductImage.product_id == product_id)
+        .order_by(models.ProductImage.sort_order)
+        .all()
+    )
+
+
+def replace_product_images(db: Session, product_id: str, images: list[dict]):
+    db.query(models.ProductImage).filter(models.ProductImage.product_id == product_id).delete()
+    for i, img in enumerate(images):
+        db.add(models.ProductImage(
+            id=str(uuid.uuid4()),
+            product_id=product_id,
+            url=img["url"],
+            alt_text=img.get("alt_text") or "",
+            is_primary=img.get("is_primary", i == 0),
+            sort_order=i,
+        ))
+    db.flush()
 
 
 def increment_view_count(db: Session, product_id: str) -> None:
@@ -518,29 +552,75 @@ def get_spec_templates(db: Session, product_type: str) -> list[models.SpecTempla
     )
 
 
-def get_spec_template(db: Session, product_type: str, group_name: str, spec_key: str) -> models.SpecTemplate | None:
+def get_all_spec_templates(db: Session) -> list[models.SpecTemplate]:
     return (
         db.query(models.SpecTemplate)
+        .order_by(models.SpecTemplate.product_type, models.SpecTemplate.default_order)
+        .all()
+    )
+
+
+def create_spec_template_with_check(db: Session, data: dict) -> models.SpecTemplate:
+    existing = (
+        db.query(models.SpecTemplate)
         .filter(
-            models.SpecTemplate.product_type == product_type,
-            models.SpecTemplate.group_name == group_name,
-            models.SpecTemplate.spec_key == spec_key,
+            models.SpecTemplate.product_type == data["product_type"],
+            func.lower(models.SpecTemplate.group_name) == data["group_name"].strip().lower(),
+            func.lower(models.SpecTemplate.spec_key)   == data["spec_key"].strip().lower(),
         )
         .first()
     )
+    if existing:
+        raise ValueError("Template with this product_type + group_name + spec_key already exists")
 
-
-def create_spec_template(db: Session, product_type: str, group_name: str, spec_key: str, default_order: int) -> models.SpecTemplate:
-    template = models.SpecTemplate(
-        product_type=product_type,
-        group_name=group_name,
-        spec_key=spec_key,
-        default_order=default_order,
+    tpl = models.SpecTemplate(
+        id           = str(uuid.uuid4()),
+        product_type = data["product_type"].strip(),
+        group_name   = data["group_name"].strip(),
+        spec_key     = data["spec_key"].strip(),
+        default_order= data.get("default_order", 0),
     )
-    db.add(template)
+    db.add(tpl)
     db.commit()
-    db.refresh(template)
-    return template
+    db.refresh(tpl)
+    return tpl
+
+
+def delete_spec_template(db: Session, template_id: str) -> None:
+    tpl = db.query(models.SpecTemplate).filter(models.SpecTemplate.id == template_id).first()
+    if not tpl:
+        raise ValueError("Template not found")
+    db.delete(tpl)
+    db.commit()
+
+
+def reorder_spec_templates(db: Session, product_type: str, ordered_ids: list[str]) -> None:
+    for i, tid in enumerate(ordered_ids):
+        db.query(models.SpecTemplate)\
+          .filter(models.SpecTemplate.id == tid,
+                  models.SpecTemplate.product_type == product_type)\
+          .update({"default_order": i})
+    db.commit()
+
+
+def get_distinct_spec_template_types(db: Session) -> list[str]:
+    rows = (
+        db.query(models.SpecTemplate.product_type)
+        .distinct()
+        .order_by(models.SpecTemplate.product_type)
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+def delete_spec_template_type(db: Session, product_type: str) -> int:
+    deleted = (
+        db.query(models.SpecTemplate)
+        .filter(models.SpecTemplate.product_type == product_type)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return deleted
 
 
 def get_reviews_by_product(db: Session, product_id: str) -> list[models.Review]:
@@ -596,13 +676,6 @@ def get_wishlist(db: Session, user_id: str) -> list[models.Wishlist]:
         .order_by(models.Wishlist.created_at.desc())
         .all()
     )
-
-
-def is_in_wishlist(db: Session, user_id: str, product_id: str) -> bool:
-    return db.query(models.Wishlist).filter(
-        models.Wishlist.user_id == user_id,
-        models.Wishlist.product_id == product_id
-    ).first() is not None
 
 
 def add_to_wishlist(db: Session, user_id: str, product_id: str) -> models.Wishlist:
@@ -857,13 +930,130 @@ def get_order_status_history(db: Session, order_id: str) -> list[models.OrderSta
     return db.query(models.OrderStatusHistory).filter(models.OrderStatusHistory.order_id == order_id).order_by(models.OrderStatusHistory.created_at).all()
 
 
-def update_order_tracking(db: Session, order: models.Order, tracking_code: str | None = None, shipping_provider: str | None = None, estimated_delivery: datetime | None = None) -> models.Order:
-    if tracking_code is not None:
-        order.tracking_code = tracking_code
-    if shipping_provider is not None:
-        order.shipping_provider = shipping_provider
-    if estimated_delivery is not None:
-        order.estimated_delivery = estimated_delivery
+# ---------------------------------------------------------------------------
+# Refresh Tokens
+# ---------------------------------------------------------------------------
+
+def create_refresh_token(db: Session, user_id: str, token_hash: str, expires_at: datetime, device_info: str | None = None, ip_address: str | None = None) -> models.RefreshToken:
+    rtoken = models.RefreshToken(
+        user_id=user_id,
+        token_hash=token_hash,
+        device_info=device_info,
+        ip_address=ip_address,
+        expires_at=expires_at,
+    )
+    db.add(rtoken)
     db.commit()
-    db.refresh(order)
-    return order
+    db.refresh(rtoken)
+    return rtoken
+
+
+def get_refresh_token_by_hash(db: Session, token_hash: str) -> models.RefreshToken | None:
+    return (
+        db.query(models.RefreshToken)
+        .filter(
+            models.RefreshToken.token_hash == token_hash,
+            models.RefreshToken.revoked.is_(False),
+            models.RefreshToken.expires_at > datetime.utcnow(),
+        )
+        .first()
+    )
+
+
+def revoke_refresh_token(db: Session, token_id: str) -> None:
+    db.query(models.RefreshToken).filter(models.RefreshToken.id == token_id).update({"revoked": True})
+    db.commit()
+
+
+def revoke_all_user_refresh_tokens(db: Session, user_id: str) -> None:
+    db.query(models.RefreshToken).filter(
+        models.RefreshToken.user_id == user_id,
+        models.RefreshToken.revoked.is_(False),
+    ).update({"revoked": True})
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# MFA Challenges
+# ---------------------------------------------------------------------------
+
+def create_mfa_challenge(db: Session, user_id: str, jti: str, expires_at: datetime) -> models.MfaChallenge:
+    challenge = models.MfaChallenge(
+        user_id=user_id,
+        jti=jti,
+        expires_at=expires_at,
+    )
+    db.add(challenge)
+    db.commit()
+    db.refresh(challenge)
+    return challenge
+
+
+def get_mfa_challenge_by_jti(db: Session, jti: str) -> models.MfaChallenge | None:
+    return (
+        db.query(models.MfaChallenge)
+        .filter(
+            models.MfaChallenge.jti == jti,
+            models.MfaChallenge.used.is_(False),
+            models.MfaChallenge.expires_at > datetime.utcnow(),
+        )
+        .first()
+    )
+
+
+def mark_mfa_challenge_used(db: Session, jti: str) -> None:
+    db.query(models.MfaChallenge).filter(models.MfaChallenge.jti == jti).update({"used": True})
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Audit Logs
+# ---------------------------------------------------------------------------
+
+def get_audit_logs(db: Session, limit: int = 100, offset: int = 0) -> list[models.AuditLog]:
+    return (
+        db.query(models.AuditLog)
+        .order_by(models.AuditLog.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
+def get_audit_logs_for_user(db: Session, user_id: str, limit: int = 50, offset: int = 0) -> list[models.AuditLog]:
+    return (
+        db.query(models.AuditLog)
+        .filter(models.AuditLog.user_id == user_id)
+        .order_by(models.AuditLog.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+
+
+# ---------------------------------------------------------------------------
+# Login History
+# ---------------------------------------------------------------------------
+
+def get_login_history(db: Session, user_id: str, limit: int = 20) -> list[models.LoginHistory]:
+    return (
+        db.query(models.LoginHistory)
+        .filter(models.LoginHistory.user_id == user_id)
+        .order_by(models.LoginHistory.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def create_login_history(db: Session, user_id: str, success: bool, ip_address: str | None = None, user_agent: str | None = None, fail_reason: str | None = None) -> models.LoginHistory:
+    entry = models.LoginHistory(
+        user_id=user_id,
+        ip_address=ip_address,
+        user_agent=user_agent,
+        success=success,
+        fail_reason=fail_reason,
+    )
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return entry

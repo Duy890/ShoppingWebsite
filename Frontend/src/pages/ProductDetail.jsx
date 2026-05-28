@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useProductDetail } from '../hooks/useProductDetail';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
@@ -38,11 +39,22 @@ const ProductDetail = () => {
     selectedVariant,
     setSelectedVariant,
     displayPrice,
+    displayDescription,
     handleReviewSubmit,
     handleAddToCart,
     handleVariantChange,
     isAuthenticated,
   } = useProductDetail();
+
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  const allImages = product?.product_images?.length
+    ? product.product_images
+    : product?.image_url
+    ? [{ url: product.image_url, alt_text: product.name }]
+    : [];
+
+  const mainImage = allImages[selectedImageIndex] || allImages[0] || null;
 
   if (loading) {
     return (
@@ -87,10 +99,10 @@ const ProductDetail = () => {
           {/* Product Image Gallery */}
           <div className="space-y-6">
             <div className="aspect-square bg-gray-50 rounded-3xl overflow-hidden border border-gray-100 flex items-center justify-center p-12">
-              {product.image_url ? (
+              {mainImage ? (
                 <img
-                  src={product.image_url}
-                  alt={product.name}
+                  src={mainImage.url}
+                  alt={mainImage.alt_text || product.name}
                   className="w-full h-full object-contain hover:scale-105 transition-transform duration-700"
                 />
               ) : (
@@ -98,14 +110,21 @@ const ProductDetail = () => {
               )}
             </div>
             
-            {/* Small Thumbnails (Mockup) */}
-            <div className="grid grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="aspect-square bg-gray-50 rounded-xl border border-gray-100 cursor-pointer hover:border-primary transition-colors p-2">
-                   {product.image_url && <img src={product.image_url} alt="thumbnail" className="w-full h-full object-contain opacity-50" />}
-                </div>
-              ))}
-            </div>
+            {allImages.length > 1 && (
+              <div className="grid grid-cols-4 gap-4">
+                {allImages.map((img, i) => (
+                  <div
+                    key={i}
+                    onClick={() => setSelectedImageIndex(i)}
+                    className={`aspect-square bg-gray-50 rounded-xl border cursor-pointer transition-colors p-2 ${
+                      i === selectedImageIndex ? 'border-primary ring-1 ring-primary' : 'border-gray-100 hover:border-primary'
+                    }`}
+                  >
+                    <img src={img.url} alt={img.alt_text || ''} className="w-full h-full object-contain" />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Product Info */}
@@ -139,8 +158,8 @@ const ProductDetail = () => {
                 {formatPrice(displayPrice || product.price)}
               </div>
 
-              <p className="text-gray-500 leading-relaxed text-lg">
-                {product.description}
+              <p className="text-gray-500 leading-relaxed text-lg whitespace-pre-line">
+                {displayDescription || product.description}
               </p>
             </div>
 
@@ -240,8 +259,8 @@ const ProductDetail = () => {
           </div>
 
           {activeTab === 'description' ? (
-            <div className="rounded-2xl bg-gray-50 p-8 text-gray-600 leading-8">
-              {product.description || t('product_detail.description_missing')}
+            <div className="rounded-2xl bg-gray-50 p-8 text-gray-600 leading-8 whitespace-pre-line">
+              {displayDescription || product.description || t('product_detail.description_missing')}
             </div>
           ) : (
             <ProductSpecifications specifications={specifications} />

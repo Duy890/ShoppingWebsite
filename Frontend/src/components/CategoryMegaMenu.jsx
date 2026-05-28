@@ -1,13 +1,23 @@
 import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight, LayoutGrid } from 'lucide-react';
 import { useNavigation } from '../hooks/useNavigation';
 
 const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
   const { navTree, navLoading } = useNavigation();
   const [activeL1Index, setActiveL1Index] = useState(0);
   const closeTimeoutRef = useRef(null);
+
+  const getItemName = (item) => {
+    const isEnglish = typeof i18n.language === 'string' && i18n.language.toLowerCase().startsWith('en');
+    if (isEnglish && item.name_en) {
+      return item.name_en;
+    }
+    return item.name;
+  };
 
   useEffect(() => {
     console.count("CategoryMegaMenu render");
@@ -71,7 +81,7 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
                   {activeL1Index === index && (
                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
                   )}
-                  <span className="text-sm font-semibold">{item.name}</span>
+                  <span className="text-sm font-semibold">{getItemName(item)}</span>
                   <ChevronRight className={`w-4 h-4 transition-transform ${activeL1Index === index ? 'translate-x-1 opacity-100 text-primary' : 'opacity-0'}`} />
                 </button>
               ))}
@@ -92,13 +102,13 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
                 <div className="mb-8 border-b border-gray-100 pb-4 flex items-center justify-between">
                   <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
                     <LayoutGrid className="w-5 h-5 text-primary" />
-                    Tất cả {activeL1.name}
+                    {t("menu.all_in")} {getItemName(activeL1)}
                   </h3>
                   <button 
                     onClick={() => handleCategoryClick(activeL1.slug)}
                     className="text-xs font-bold text-primary hover:underline uppercase tracking-wider"
                   >
-                    Xem tất cả
+                    {t("menu.view_all")}
                   </button>
                 </div>
                 
@@ -110,7 +120,7 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
                           onClick={() => handleCategoryClick(l2.slug)}
                           className="text-sm font-black text-gray-900 hover:text-primary transition-colors uppercase tracking-tight"
                         >
-                          {l2.name}
+                          {getItemName(l2)}
                         </button>
                         
                         {l2.children && l2.children.length > 0 ? (
@@ -122,12 +132,12 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
                                 className="text-sm text-gray-500 hover:text-primary text-left transition-colors flex items-center group"
                               >
                                 <div className="w-1.5 h-1.5 rounded-full bg-gray-200 mr-2 group-hover:bg-primary transition-colors"></div>
-                                {l3.name}
+                                {getItemName(l3)}
                               </button>
                             ))}
                           </div>
                         ) : (
-                          <div className="text-xs text-gray-300 italic">Xem chi tiết sản phẩm</div>
+                          <div className="text-xs text-gray-300 italic">{t("menu.view_details")}</div>
                         )}
                       </div>
                     ))}
@@ -140,7 +150,7 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
               </div>
             ) : !navLoading && (
               <div className="flex h-full items-center justify-center text-gray-400 italic">
-                Chọn một danh mục để xem chi tiết.
+                {t("menu.select_category")}
               </div>
             )}
             

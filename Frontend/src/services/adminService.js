@@ -30,4 +30,10 @@ export const adminService = {
     const { data } = await api.get('/admin/analytics/cart-abandonment');
     return data;
   },
+  async generateDescription(productData) {
+    const { data } = await api.post('/admin/generate-description', {
+      product_data: productData,
+    });
+    return data;
+  },
 };

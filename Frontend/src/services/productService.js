@@ -98,6 +98,28 @@ export const productService = {
     return data;
   },
 
+  async saveProductVariants(productId, variants) {
+    const results = [];
+    for (const variant of variants) {
+      const payload = {
+        color_name: variant.color_name || null,
+        color_code: variant.color_code || null,
+        version_name: variant.version_name || null,
+        ram: variant.ram || null,
+        storage: variant.storage || null,
+        price: parseFloat(variant.price) || 0,
+        compare_price: variant.compare_price ? parseFloat(variant.compare_price) : null,
+        stock: parseInt(variant.stock, 10) || 0,
+        image_url: variant.image_url || null,
+        is_default: variant.is_default || false,
+        status: variant.status || 'active',
+      };
+      const { data } = await api.post(`/admin/products/${productId}/variants`, payload);
+      results.push(data);
+    }
+    return results;
+  },
+
   async getSpecTemplates(productType) {
     if (!productType) return [];
     const { data } = await api.get(`/spec-templates/${productType}`);
@@ -106,6 +128,13 @@ export const productService = {
 
   _navCategoriesCache: null,
   _navCategoriesPromise: null,
+
+  clearNavigationCache() {
+    this._navTreeCache = null;
+    this._navTreePromise = null;
+    this._navCategoriesCache = null;
+    this._navCategoriesPromise = null;
+  },
 
   async getNavigationCategories() {
     if (this._navCategoriesCache) return this._navCategoriesCache;
@@ -185,6 +214,16 @@ export const productService = {
 
   async getCartRecommendations() {
     const { data } = await api.get('/cart/recommendations');
+    return data;
+  },
+
+  async getProductImages(productId) {
+    const { data } = await api.get(`/products/${productId}/images`);
+    return data;
+  },
+
+  async saveProductImages(productId, images) {
+    const { data } = await api.put(`/admin/products/${productId}/images`, images);
     return data;
   },
 };

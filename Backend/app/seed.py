@@ -145,77 +145,7 @@ def get_or_create_game_requirement(db: Session, game_data: dict):
     return requirement
 
 
-def create_gaming_benchmark_data(db: Session):
-    gpu_rows = [
-        ("NVIDIA GeForce RTX 4050", 11500, "rtx 4050,geforce rtx 4050"),
-        ("NVIDIA GeForce RTX 4060", 14500, "rtx 4060,geforce rtx 4060"),
-        ("NVIDIA GeForce RTX 4070", 18500, "rtx 4070,geforce rtx 4070"),
-        ("NVIDIA GeForce RTX 4080", 26000, "rtx 4080,geforce rtx 4080"),
-        ("NVIDIA GeForce RTX 4090", 33000, "rtx 4090,geforce rtx 4090"),
-        ("NVIDIA GeForce GTX 1650", 7000, "gtx 1650,geforce gtx 1650"),
-        ("AMD Radeon RX 6600", 13500, "radeon rx 6600,rx 6600"),
-        ("Apple M3 Max GPU", 22000, "m3 max gpu,apple m3 max gpu"),
-    ]
-    for name, score, aliases in gpu_rows:
-        get_or_create_gpu_benchmark(db, name, score, aliases)
-
-    cpu_rows = [
-        ("Intel Core i5-12450H", 12500, "core i5 12450h,intel i5 12450h"),
-        ("Intel Core i7-13700H", 18500, "core i7 13700h,intel i7 13700h"),
-        ("Intel Core i9-13900H", 21500, "core i9 13900h,intel i9 13900h"),
-        ("AMD Ryzen 5 5600H", 13500, "ryzen 5 5600h"),
-        ("AMD Ryzen 7 7840HS", 19500, "ryzen 7 7840hs"),
-        ("Apple M3 Max", 22000, "m3 max,apple m3 max"),
-    ]
-    for name, score, aliases in cpu_rows:
-        get_or_create_cpu_benchmark(db, name, score, aliases)
-
-    game_rows = [
-        {
-            "game_name": "Cyberpunk 2077",
-            "aliases": "cyberpunk,cyberpunk 2077",
-            "min_gpu_score": 7000,
-            "recommended_gpu_score": 11500,
-            "ultra_gpu_score": 22000,
-            "min_cpu_score": 9000,
-            "recommended_cpu_score": 12500,
-            "ultra_cpu_score": 18500,
-            "min_ram_gb": 8,
-            "recommended_ram_gb": 16,
-            "ultra_ram_gb": 16,
-        },
-        {
-            "game_name": "AAA Games",
-            "aliases": "aaa,aaa games,modern aaa games",
-            "min_gpu_score": 9000,
-            "recommended_gpu_score": 14500,
-            "ultra_gpu_score": 26000,
-            "min_cpu_score": 10000,
-            "recommended_cpu_score": 15000,
-            "ultra_cpu_score": 20000,
-            "min_ram_gb": 16,
-            "recommended_ram_gb": 16,
-            "ultra_ram_gb": 32,
-        },
-        {
-            "game_name": "Valorant",
-            "aliases": "valorant",
-            "min_gpu_score": 3000,
-            "recommended_gpu_score": 6000,
-            "ultra_gpu_score": 9000,
-            "min_cpu_score": 4000,
-            "recommended_cpu_score": 8000,
-            "ultra_cpu_score": 11000,
-            "min_ram_gb": 4,
-            "recommended_ram_gb": 8,
-            "ultra_ram_gb": 16,
-        },
-    ]
-    for game_data in game_rows:
-        get_or_create_game_requirement(db, game_data)
-
-
 def run_seed(db: Session) -> None:
     """Ham duy nhat duoc goi tu ben ngoai."""
     create_spec_templates(db)
-    create_gaming_benchmark_data(db)
+    # Benchmark data được quản lý tập trung trong seed_data.py

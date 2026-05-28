@@ -53,7 +53,13 @@ const Orders = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-black text-gray-900 mb-8 tracking-tight">Orders</h1>
+      <div className="space-y-2 mb-8">
+        <div className="flex items-center space-x-2 text-primary">
+          <div className="h-1 w-8 bg-primary rounded-full" />
+          <span className="text-xs font-black uppercase tracking-widest">Fulfillment</span>
+        </div>
+        <h1 className="text-4xl font-black text-gray-900 tracking-tight">Orders</h1>
+      </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {orders.length > 0 ? (
@@ -153,7 +159,7 @@ const Orders = () => {
                       </select>
                       <button
                         onClick={() => handleSimulateNext(order.id)}
-                        className="text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors"
+                        className="text-xs font-bold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-gray-900 transition-colors"
                         title="Simulate next status"
                       >
                         Next
@@ -175,3 +181,4 @@ const Orders = () => {
 };
 
 export default Orders;
+

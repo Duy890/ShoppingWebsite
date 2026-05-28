@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..core.database import SessionLocal
 from ..models import Product
-from .. import models, services
+from .. import models
+from ..services import category_service
 from typing import List, Dict
 
 router = APIRouter(prefix="/navigation", tags=["navigation"])
@@ -55,7 +56,7 @@ async def debug_products(db: Session = Depends(get_db)):
         ]
     }
 
-# Mapping internal product_type to display name
+# Mapping internal product_type to display name (Vietnamese)
 TYPE_MAPPING = {
     "phone": "Điện thoại",
     "laptop": "Laptop",
@@ -67,6 +68,44 @@ TYPE_MAPPING = {
     "monitor": "Màn hình",
     "pc": "PC",
     "accessory": "Phụ kiện"
+}
+
+# English display names for product types
+TYPE_MAPPING_EN = {
+    "phone": "Smartphones",
+    "laptop": "Laptops",
+    "tablet": "Tablets",
+    "watch": "Smart Watches",
+    "audio": "Audio & Headphones",
+    "keyboard": "Keyboards",
+    "mouse": "Mice",
+    "monitor": "Monitors",
+    "pc": "Desktop PCs",
+    "accessory": "Accessories"
+}
+
+# English display names for category slugs
+CATEGORY_NAME_EN = {
+    "dien-thoai": "Phones",
+    "laptop": "Laptops",
+    "tai-nghe-am-thanh": "Audio",
+    "phu-kien": "Accessories",
+    "tablet": "Tablets",
+    "dong-ho-thong-minh": "Smart Watches",
+    "iphone": "iPhone",
+    "android-cao-cap": "Premium Android",
+    "android-pho-thong": "Budget Android",
+    "laptop-gaming": "Gaming Laptops",
+    "laptop-van-phong": "Office Laptops",
+    "laptop-sinh-vien": "Student Laptops",
+    "macbook": "MacBooks",
+    "tai-nghe-chong-on": "Noise-Cancelling Headphones",
+    "tai-nghe-gaming": "Gaming Headsets",
+    "tai-nghe-tws": "True Wireless Headphones",
+    "sac-pin-du-phong": "Chargers & Power Banks",
+    "op-lung-bao-ve": "Cases & Protection",
+    "hub-adapter": "Hubs & Adapters",
+    "chuot-gaming": "Mice & Gaming Gear",
 }
 
 @router.get("/tree")
@@ -83,6 +122,7 @@ async def get_navigation_tree(db: Session = Depends(get_db)):
         cat_map[cat.id] = {
             "id": cat.id,
             "name": cat.name,
+            "name_en": CATEGORY_NAME_EN.get(cat.slug, cat.name),
             "slug": cat.slug,
             "level": cat.level,
             "children": []
@@ -107,14 +147,16 @@ async def get_navigation_tree(db: Session = Depends(get_db)):
                 sort_tree(node["children"])
                 
     sort_tree(tree)
-    
-    # Override sort for top level to maintain preferred order
-    preferred_order = [
-        "Điện thoại", "Laptop", "Máy tính bảng", "Âm thanh", "Đồng hồ", "Phụ kiện", "Gaming", "PC", "Thiết bị mạng"
+
+    # Override sort for top level to maintain preferred order (slug-based — language independent)
+    preferred_slug_order = [
+        "dien-thoai", "iphone", "android-cao-cap", "android-pho-thong",
+        "laptop", "laptop-gaming", "laptop-van-phong", "macbook",
+        "tablet", "tai-nghe-am-thanh", "dong-ho-thong-minh", "phu-kien"
     ]
     
-    order_map = {name: i for i, name in enumerate(preferred_order)}
-    tree.sort(key=lambda x: order_map.get(x["name"], 999))
+    slug_order_map = {slug: i for i, slug in enumerate(preferred_slug_order)}
+    tree.sort(key=lambda x: slug_order_map.get(x.get("slug", ""), 999))
     
     return tree
 
@@ -135,16 +177,18 @@ async def get_navigation_categories(db: Session = Depends(get_db)):
         if not p_type or not brand:
             continue
         
-        display_name = TYPE_MAPPING.get(p_type, p_type.capitalize())
+        display_name_vi = TYPE_MAPPING.get(p_type, p_type.capitalize())
+        display_name_en = TYPE_MAPPING_EN.get(p_type, p_type.capitalize())
         
-        if display_name not in nav_data:
-            nav_data[display_name] = {
-                "product_type": display_name,
+        if display_name_vi not in nav_data:
+            nav_data[display_name_vi] = {
+                "product_type": display_name_vi,
+                "product_type_en": display_name_en,
                 "type_slug": p_type,
                 "brands": set()
             }
         
-        nav_data[display_name]["brands"].add(brand)
+        nav_data[display_name_vi]["brands"].add(brand)
     
     # Convert sets to sorted lists
     final_data = []
@@ -176,4 +220,4 @@ async def get_navigation_brands(category: str | None = None, db: Session = Depen
     Returns distinct list of brands for the selected category.
     If no category is provided, returns all brands.
     """
-    return services.get_brands_by_category(db, category)
+    return category_service.get_brands_by_category(db, category)

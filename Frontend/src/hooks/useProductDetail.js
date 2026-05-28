@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useCart } from './useCart';
 import { useAuth } from './useAuth';
+import { formatStorage } from '../utils/formatStorage';
 import { productService } from '../services/productService';
 
 const buildVariantSearchParams = (variant) => {
@@ -14,7 +15,7 @@ const buildVariantSearchParams = (variant) => {
   if (variant.version_name) {
     params.set('version', variant.version_name);
   } else if (variant.ram || variant.storage) {
-    params.set('version', `${variant.ram}|${variant.storage}`);
+    params.set('version', `${variant.ram}|${formatStorage(variant.storage)}`);
   }
 
   return params;
@@ -30,6 +31,7 @@ export const useProductDetail = () => {
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [specifications, setSpecifications] = useState({});
+  const [baseSpecifications, setBaseSpecifications] = useState({});
   const [activeTab, setActiveTab] = useState('specifications');
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
@@ -37,6 +39,7 @@ export const useProductDetail = () => {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [displayPrice, setDisplayPrice] = useState(null);
+  const [displayDescription, setDisplayDescription] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -50,6 +53,14 @@ export const useProductDetail = () => {
       init();
     }
   }, [id]);
+
+  // Sync specs & description whenever selected variant or base specs change
+  useEffect(() => {
+    if (selectedVariant && Object.keys(baseSpecifications).length > 0) {
+      setSpecifications(mergeVariantIntoSpecs(baseSpecifications, selectedVariant));
+    }
+    setDisplayDescription(buildDisplayDescription(product, selectedVariant));
+  }, [selectedVariant, baseSpecifications, product]);
 
   const applyVariantParams = (variant) => {
     const newParams = buildVariantSearchParams(variant);
@@ -76,7 +87,8 @@ export const useProductDetail = () => {
           variant = data.variants.find((v) => {
             const matchColor = !colorParam || v.color_code === colorParam;
             const versionStr = `${v.ram}|${v.storage}`;
-            const matchVersion = !versionParam || v.version_name === versionParam || versionStr === versionParam;
+            const versionStrFormatted = `${v.ram}|${formatStorage(v.storage)}`;
+            const matchVersion = !versionParam || v.version_name === versionParam || versionStr === versionParam || versionStrFormatted === versionParam;
             return matchColor && matchVersion;
           });
         }
@@ -84,6 +96,7 @@ export const useProductDetail = () => {
         variant = variant || data.variants.find((v) => v.is_default) || data.variants[0];
         setSelectedVariant(variant);
         setDisplayPrice(variant.price || data.price);
+        setDisplayDescription(buildDisplayDescription(data, variant));
         applyVariantParams(variant);
       }
     } catch (error) {
@@ -106,11 +119,51 @@ export const useProductDetail = () => {
   const loadSpecifications = async () => {
     try {
       const data = await productService.getProductSpecifications(id);
+      setBaseSpecifications(data);
       setSpecifications(data);
     } catch (error) {
       console.error('Error loading specifications:', error);
+      setBaseSpecifications({});
       setSpecifications({});
     }
+  };
+
+  // Map variant fields to common spec key patterns (case-insensitive)
+  const RAM_KEYS = ['ram', 'bộ nhớ ram', 'memory', 'bộ nhớ trong'];
+  const STORAGE_KEYS = ['storage', 'ổ cứng', 'ssd', 'hdd', 'lưu trữ', 'bộ nhớ lưu trữ', 'ổ lưu trữ'];
+
+  const buildDisplayDescription = (product, variant) => {
+    if (!product) return '';
+    let desc = product.description || '';
+    if (variant && (variant.ram || variant.storage)) {
+      const parts = [];
+      if (variant.ram) parts.push(`${variant.ram} RAM`);
+      if (variant.storage) parts.push(formatStorage(variant.storage));
+      if (parts.length > 0) {
+        desc += `\n\nPhien ban nay: ${parts.join(' — ')}.`;
+      }
+    }
+    return desc;
+  };
+
+  const mergeVariantIntoSpecs = (baseSpecs, variant) => {
+    if (!variant || (!variant.ram && !variant.storage)) return baseSpecs;
+
+    // Deep clone
+    const merged = {};
+    for (const [groupName, specs] of Object.entries(baseSpecs)) {
+      merged[groupName] = specs.map((spec) => {
+        const keyLower = (spec.key || spec.spec_key || '').toLowerCase();
+        if (variant.ram && RAM_KEYS.some((k) => keyLower.includes(k))) {
+          return { ...spec, value: variant.ram, _variantHighlight: true };
+        }
+        if (variant.storage && STORAGE_KEYS.some((k) => keyLower.includes(k))) {
+          return { ...spec, value: formatStorage(variant.storage), _variantHighlight: true };
+        }
+        return spec;
+      });
+    }
+    return merged;
   };
 
   const handleReviewSubmit = async (e) => {
@@ -155,6 +208,8 @@ export const useProductDetail = () => {
     setDisplayPrice(variant.price || product.price);
     setQuantity(1);
     applyVariantParams(variant);
+    // Sync specifications with selected variant values
+    setSpecifications(mergeVariantIntoSpecs(baseSpecifications, variant));
   };
 
   return {
@@ -162,6 +217,7 @@ export const useProductDetail = () => {
     product,
     reviews,
     specifications,
+    baseSpecifications,
     activeTab,
     setActiveTab,
     loading,
@@ -174,6 +230,7 @@ export const useProductDetail = () => {
     setSelectedVariant,
     displayPrice,
     setDisplayPrice,
+    displayDescription,
     handleReviewSubmit,
     handleAddToCart,
     handleVariantChange,

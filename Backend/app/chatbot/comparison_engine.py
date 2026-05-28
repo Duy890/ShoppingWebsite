@@ -1,14 +1,45 @@
+from __future__ import annotations
+
 from sqlalchemy.orm import Session
 
-from app.chatbot.product_utils import find_spec_value, match_products_by_terms, product_to_card
+from app import models
+from .base import ChatEngine
+from .schemas import ChatContext, EngineResult, ProductCard
+from .product_utils import find_spec_value, match_products_by_terms, product_to_card
+from .search_engine import fetch_products_for_chat
 
 
 COMPARE_FIELDS = ["price", "cpu", "gpu", "ram", "storage", "display", "battery"]
 
 
+class ComparisonEngine(ChatEngine):
+    """Side-by-side product comparison with spec extraction."""
+
+    def handle(self, ctx: ChatContext) -> EngineResult:
+        entities = ctx.intent_result.entities if ctx.intent_result else {}
+        result = compare_products(ctx.db, entities, ctx.message)
+        product_cards = [
+            ProductCard(**{k: v for k, v in p.items() if k in ProductCard.__dataclass_fields__})
+            for p in result.get("products", [])
+        ]
+        return EngineResult(
+            products=product_cards,
+            comparison=result,
+            response_context={"comparison_data": result},
+        )
+
+
+comparison_engine = ComparisonEngine()
+
+
 def compare_products(db: Session, entities: dict, message: str) -> dict:
-    terms = []
-    terms.extend(entities.get("product_names") or [])
+    """Compare up to 2 products, extracting spec fields side-by-side.
+
+    Uses the legacy product-utils matching approach (from the original
+    chatbot/comparison_engine.py) and ALSO tries the entity-based
+    fetch from chat_service.py as enrichment.
+    """
+    terms = list(entities.get("product_names") or [])
     terms.extend(entities.get("brands") or [])
     terms.extend(_split_compare_terms(message))
 

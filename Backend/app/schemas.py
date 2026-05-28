@@ -9,14 +9,87 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
-    new_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
 
 class EmailChangeRequest(BaseModel):
     new_email: EmailStr
+
+# ── Refresh Token ──
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+# ── MFA ──
+
+class MFAEnableRequest(BaseModel):
+    password: str
+
+class MFAVerifyRequest(BaseModel):
+    token: str
+    code: str
+
+class MFADisableRequest(BaseModel):
+    password: str
+    code: str
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    qr_code_url: str
+
+class MFAStatusResponse(BaseModel):
+    mfa_enabled: bool
+
+
+class MFAChallengeVerifyRequest(BaseModel):
+    challenge_token: str
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class LoginResponse(BaseModel):
+    access_token: str = ""
+    refresh_token: str = ""
+    token_type: str = "bearer"
+    user: Optional["UserResponse"] = None
+    mfa_required: bool = False
+    mfa_challenge_token: str = ""
+
+# ── Audit Log ──
+
+class AuditLogRead(BaseModel):
+    id: str
+    user_id: str
+    action: str
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    details: Optional[Any] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+# ── Login History ──
+
+class LoginHistoryRead(BaseModel):
+    id: str
+    user_id: str
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    success: bool
+    fail_reason: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 class MoMoPaymentRequest(BaseModel):
     order_id: str
@@ -45,6 +118,7 @@ class MoMoIPNPayload(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str = ""
     token_type: str
 
 
@@ -58,7 +132,7 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(..., min_length=8, max_length=128)
 
 
 class UserResponse(UserBase):
@@ -173,6 +247,23 @@ class ProductUpdate(BaseModel):
     embedding: Optional[List[float]] = None
 
 
+class ProductImageRead(BaseModel):
+    id: str
+    product_id: str
+    url: str
+    alt_text: Optional[str] = ""
+    is_primary: bool = False
+    sort_order: int = 0
+    model_config = {"from_attributes": True}
+
+
+class ProductImageCreate(BaseModel):
+    url: str
+    alt_text: Optional[str] = ""
+    is_primary: bool = False
+    sort_order: int = 0
+
+
 class ProductRead(ProductBase):
     id: str
     created_at: datetime
@@ -180,6 +271,8 @@ class ProductRead(ProductBase):
     category: Optional[CategoryRead] = None
     reviews: List["ReviewRead"] = []
     variants: List["ProductVariantRead"] = []
+    specifications: List["ProductSpecificationRead"] = []
+    product_images: List[ProductImageRead] = []
 
     model_config = {"from_attributes": True}
 
@@ -219,6 +312,7 @@ class ProductSpecificationBase(BaseModel):
     group_name: str
     spec_key: str
     spec_value: Optional[str] = None
+    unit: Optional[str] = None
     display_order: int = 0
 
 
@@ -270,6 +364,7 @@ class ProductSpecificationUpdate(BaseModel):
 class ProductSpecificationRead(ProductSpecificationBase):
     id: str
     product_id: str
+    unit: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -277,6 +372,13 @@ class ProductSpecificationRead(ProductSpecificationBase):
 
 class ProductSpecificationBulkSave(BaseModel):
     specifications: List[ProductSpecificationCreate]
+
+
+class SpecTemplateCreate(BaseModel):
+    product_type: str
+    group_name: str
+    spec_key: str
+    default_order: int = 0
 
 
 class SpecTemplateRead(BaseModel):
@@ -450,6 +552,16 @@ class AdminStats(BaseModel):
     total_revenue: float
     total_users: int
 
+
+class GenerateDescriptionRequest(BaseModel):
+    product_data: dict
+
+class GenerateDescriptionResponse(BaseModel):
+    short_description: str
+    key_highlights: list[str]
+    full_description: str
+    performance_summary: str
+    seo_description: str
 
 class RecommendationItem(BaseModel):
     id: str

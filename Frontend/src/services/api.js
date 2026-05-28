@@ -1,6 +1,14 @@
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
+const _shownToasts = new Set();
+const toastOnce = (message, ttl = 5000) => {
+  if (_shownToasts.has(message)) return;
+  _shownToasts.add(message);
+  toast.error(message);
+  setTimeout(() => _shownToasts.delete(message), ttl);
+};
+
 // Create axios instance
 const getBaseURL = () => {
   const url = import.meta.env.VITE_API_URL;
@@ -15,13 +23,41 @@ const api = axios.create({
   timeout: 10000,
 });
 
+// Token helpers
+const TOKEN_KEY = 'shop_token';
+const REFRESH_TOKEN_KEY = 'shop_refresh_token';
+
+const getAccessToken = () => localStorage.getItem(TOKEN_KEY);
+const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY);
+const setTokens = (access, refresh) => {
+  localStorage.setItem(TOKEN_KEY, access);
+  if (refresh) localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
+};
+const clearTokens = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem('shop_user');
+};
+
+// Track refresh state to avoid infinite loops
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
+
 // Request interceptor - Add auth token
 api.interceptors.request.use((config) => {
   if (!config.headers) {
     config.headers = {};
   }
 
-  const token = localStorage.getItem('shop_token');
+  const token = getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -29,35 +65,33 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor - Handle errors
+// Response interceptor - Handle errors + auto refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Handle canceled requests — silently ignore, do NOT show UI errors
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle canceled requests — silently ignore
     if (axios.isCancel(error) || error.code === 'ERR_CANCELED' || error.name === 'CanceledError') {
       return Promise.reject(error);
     }
 
     // Handle timeout
     if (error.code === 'ECONNABORTED') {
-      toast.error('Request timeout. Please try again.');
+      toastOnce('Request timeout. Please try again.');
       return Promise.reject(error);
     }
 
     // Handle network errors
     if (!error.response) {
-      // Network error or no response
       if (error.message === 'Network Error') {
-        toast.error('Network error. Please check your connection.');
-        // Dispatch offline event to show offline banner
-        window.dispatchEvent(new Event('offline'));
+        toastOnce('Network error. Please check your connection.');
       } else if (error.code === 'ECONNREFUSED') {
-        toast.error('Server is not reachable. Please ensure the backend is running.');
+        toastOnce('Server is not reachable. Please ensure the backend is running.');
       } else if (error.code === 'ECONNRESET') {
-        toast.error('Connection was reset. Please try again.');
+        toastOnce('Connection was reset. Please try again.');
       } else {
-        console.error('[api] Network error details:', error.code, error.message);
-        toast.error(`Connection error: ${error.code || error.message}`);
+        toastOnce(`Connection error: ${error.code || error.message}`);
       }
       return Promise.reject(error);
     }
@@ -65,68 +99,95 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const data = error.response?.data;
 
-    // Handle specific status codes
+    // ── Auto-refresh on 401 ──
+    if (status === 401 && !originalRequest._retry) {
+      const refreshToken = getRefreshToken();
+      if (refreshToken && !originalRequest.url?.includes('/auth/refresh')) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject });
+          }).then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          }).catch((err) => Promise.reject(err));
+        }
+
+        originalRequest._retry = true;
+        isRefreshing = true;
+
+        try {
+          const { data: tokenData } = await axios.post(
+            `${getBaseURL()}/auth/refresh`,
+            { refresh_token: refreshToken },
+          );
+          setTokens(tokenData.access_token, tokenData.refresh_token);
+          processQueue(null, tokenData.access_token);
+          originalRequest.headers.Authorization = `Bearer ${tokenData.access_token}`;
+          return api(originalRequest);
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          clearTokens();
+          toastOnce('Session expired. Please login again.');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
+        } finally {
+          isRefreshing = false;
+        }
+      }
+
+      // No refresh token — force logout
+      clearTokens();
+      toastOnce('Session expired. Please login again.');
+      window.location.href = '/login';
+      return Promise.reject(error);
+    }
+
+    // Handle other status codes
     switch (status) {
       case 400:
-        toast.error(data?.detail || 'Invalid request');
-        break;
-
-      case 401:
-        // Unauthorized - redirect to login
-        localStorage.removeItem('shop_token');
-        localStorage.removeItem('shop_user');
-        toast.error('Session expired. Please login again.');
-        window.location.href = '/login';
+        toastOnce(data?.detail || 'Invalid request');
         break;
 
       case 403:
-        // Forbidden - access denied
-        toast.error('You do not have permission to access this resource.');
+        toastOnce('You do not have permission to access this resource.');
         if (window.location.pathname !== '/403') {
           window.location.href = '/403';
         }
         break;
 
       case 404:
-        // Not found
-        toast.error(data?.detail || 'Resource not found');
-        if (!window.location.pathname.includes('/product')) {
-          // For general 404 errors
-          if (window.location.pathname !== '/404') {
-            window.location.href = '/404';
-          }
+        toastOnce(data?.detail || 'Resource not found');
+        if (!window.location.pathname.includes('/product') && window.location.pathname !== '/404') {
+          window.location.href = '/404';
         }
         break;
 
       case 422:
-        // Validation error
         if (Array.isArray(data?.detail)) {
-          data.detail.forEach((err) => {
-            toast.error(`${err.loc?.join('.')}: ${err.msg}`);
-          });
+          data.detail.forEach((err) => toastOnce(`${err.loc?.join('.')}: ${err.msg}`));
         } else {
-          toast.error(data?.detail || 'Validation error');
+          toastOnce(data?.detail || 'Validation error');
         }
         break;
 
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        // Server errors
-        if (status === 503) {
-          // Service unavailable - maintenance
-          window.location.href = '/maintenance';
-        } else {
-          toast.error('Server error. Please try again later.');
-          if (window.location.pathname !== '/500') {
-            window.location.href = '/500';
-          }
+      case 423:
+        toastOnce(data?.detail || 'Account locked. Please try again later.');
+        break;
+
+      case 429:
+        toastOnce('Too many requests. Please slow down.');
+        break;
+
+      case 500: case 502: case 503: case 504:
+        if (status === 503) window.location.href = '/maintenance';
+        else {
+          toastOnce('Server error. Please try again later.');
+          if (window.location.pathname !== '/500') window.location.href = '/500';
         }
         break;
 
       default:
-        toast.error(data?.detail || `Error: ${status}`);
+        toastOnce(data?.detail || `Error: ${status}`);
     }
 
     return Promise.reject(error);
@@ -134,3 +195,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+export { setTokens, clearTokens, getAccessToken, getRefreshToken };

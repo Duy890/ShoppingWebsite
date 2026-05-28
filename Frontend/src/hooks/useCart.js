@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   setCartItems,
@@ -8,15 +8,18 @@ import {
 } from '../store/cartSlice';
 import { cartService } from '../services/cartService';
 
+let cartGlobalLoaded = false;
+let cartLoading = false;
+
 export const useCart = () => {
   const dispatch = useDispatch();
   const { items, loading, error } = useSelector((state) => state.cart);
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const userId = user?.id;
-  const hasLoadedRef = useRef(false);
 
   const loadCart = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || cartLoading) return;
+    cartLoading = true;
 
     try {
       dispatch(setLoading(true));
@@ -26,21 +29,22 @@ export const useCart = () => {
       dispatch(setError(err.message));
     } finally {
       dispatch(setLoading(false));
+      cartLoading = false;
     }
   }, [dispatch, userId]);
 
   useEffect(() => {
-    if (isAuthenticated && userId && !hasLoadedRef.current) {
-      hasLoadedRef.current = true;
+    if (isAuthenticated && userId && !cartGlobalLoaded) {
+      cartGlobalLoaded = true;
       loadCart();
     }
   }, [isAuthenticated, userId, loadCart]);
 
   useEffect(() => {
-    if (!isAuthenticated || !userId) {
-      hasLoadedRef.current = false;
+    if (!isAuthenticated) {
+      cartGlobalLoaded = false;
     }
-  }, [isAuthenticated, userId]);
+  }, [isAuthenticated]);
 
   const addToCart = async (productId, quantity = 1, variantId = null) => {
     if (!userId) {

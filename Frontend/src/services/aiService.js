@@ -1,20 +1,10 @@
-import { productService } from './productService';
 import api from './api';
 
 export const aiService = {
-  async getRecommendations(userId, productId = null) {
+  async getRecommendations(productId, limit = 5) {
     try {
-      const response = await productService.getProducts({ limit: 20 });
-      // getProducts trả về { items: [...], pagination: {...} }
-      // phải lấy .items trước khi filter
-      const allProducts = Array.isArray(response)
-        ? response
-        : (response?.items || []);
-
-      return allProducts
-        .filter((p) => p.id !== productId)
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 8);
+      const { data } = await api.get(`/recommendations/${productId}?limit=${limit}`);
+      return data;
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       return [];

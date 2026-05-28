@@ -7,7 +7,10 @@ const productTypeOptions = [
   { value: '', label: 'Custom' },
   { value: 'phone', label: 'Phone' },
   { value: 'laptop', label: 'Laptop' },
-  { value: 'audio', label: 'Audio' },
+  { value: 'audio', label: 'Audio / Headphone' },
+  { value: 'watch', label: 'Smartwatch' },
+  { value: 'tablet', label: 'Tablet' },
+  { value: 'accessory', label: 'Accessory' },
 ];
 
 const makeRow = (overrides = {}) => ({

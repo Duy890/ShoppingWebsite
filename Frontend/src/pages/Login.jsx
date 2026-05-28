@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useTranslation } from 'react-i18next';
 import AuthLayout from '../components/auth/AuthLayout';
 import AuthCard from '../components/auth/AuthCard';
 import AuthHeader from '../components/auth/AuthHeader';
@@ -9,6 +10,7 @@ import AuthButton from '../components/auth/AuthButton';
 import AuthFooter from '../components/auth/AuthFooter';
 
 const Login = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -42,18 +44,18 @@ const Login = () => {
 
   return (
     <AuthLayout
-      title="Welcome back"
-      subtitle="Sign in to your account and continue shopping the best electronics."
+      title={t('login.title')}
+      subtitle={t('login.subtitle')}
     >
       <AuthCard>
         <AuthHeader
-          title="Sign in"
-          description="Securely access your order history, saved items, and exclusive deals."
+          title={t('login.title')}
+          description={t('login.subtitle')}
         />
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-6">
           <AuthInput
-            label="Email"
+            label={t('login.email')}
             name="email"
             type="email"
             value={formData.email}
@@ -63,7 +65,7 @@ const Login = () => {
           />
 
           <AuthInput
-            label="Password"
+            label={t('login.password')}
             name="password"
             type="password"
             value={formData.password}
@@ -74,7 +76,7 @@ const Login = () => {
 
           <div className="flex justify-end">
             <Link to="/forgot-password" className="text-sm font-semibold text-primary hover:text-orange-600 transition-colors">
-              Forgot password?
+              {t('login.forgot_password')}
             </Link>
           </div>
 
@@ -85,13 +87,13 @@ const Login = () => {
           )}
 
           <AuthButton type="submit" loading={loading}>
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? t('login.submitting') : t('login.submit')}
           </AuthButton>
         </form>
 
         <AuthFooter
-          message="Don’t have an account?"
-          linkText="Sign up"
+          message={t('login.no_account')}
+          linkText={t('login.sign_up')}
           linkTo="/signup"
         />
       </AuthCard>

@@ -1,4 +1,5 @@
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { formatPrice } from '../utils/formatPrice';
 import { ORDER_STATUS_LABELS, SHIPPING_METHOD_LABELS } from '../utils/constants';
 import { Package, MapPin, User } from 'lucide-react';
@@ -7,6 +8,7 @@ import AddressFormModal from '../components/AddressFormModal';
 import { useProfile } from '../hooks/useProfile';
 
 const Profile = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const {
@@ -31,7 +33,7 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
-        <h1 className="text-4xl font-bold text-gray-900 mb-8">My Profile</h1>
+        <h1 className="text-4xl font-bold text-gray-900 mb-8">{t('profile.title')}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
@@ -65,7 +67,7 @@ const Profile = () => {
                   onClick={() => navigate('/edit-profile')}
                   className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors active:scale-[0.98]"
                 >
-                  Edit Profile
+                  {t('profile.edit_profile')}
                 </button>
               </div>
             </div>
@@ -74,7 +76,7 @@ const Profile = () => {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-orange-500" />
-                  <h2 className="text-2xl font-bold text-gray-900">Addresses</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{t('profile.addresses')}</h2>
                 </div>
                 <button
                   onClick={() => {
@@ -83,7 +85,7 @@ const Profile = () => {
                   }}
                   className="px-4 py-2 text-sm font-semibold bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition"
                 >
-                  + Add Address
+                  {t('profile.add_address')}
                 </button>
               </div>
 
@@ -126,7 +128,7 @@ const Profile = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center space-x-2 mb-6">
                 <Package className="w-6 h-6 text-primary" />
-                <h2 className="text-2xl font-bold text-gray-900">Order History</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{t('profile.my_orders')}</h2>
               </div>
 
               {loading ? (

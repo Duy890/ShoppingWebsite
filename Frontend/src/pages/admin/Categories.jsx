@@ -115,7 +115,7 @@ const Categories = () => {
             )}
 
             {hasChildren ? (
-              <FolderOpen className="w-4 h-4 text-orange-400 flex-shrink-0" />
+              <FolderOpen className="w-4 h-4 text-primary flex-shrink-0" />
             ) : (
               <Folder className="w-4 h-4 text-gray-300 flex-shrink-0" />
             )}
@@ -132,7 +132,7 @@ const Categories = () => {
             </div>
 
             {node.level === 0 && (
-              <span className="ml-2 text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full flex-shrink-0">
+              <span className="ml-2 text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full flex-shrink-0">
                 Cha
               </span>
             )}
@@ -166,13 +166,19 @@ const Categories = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Quan ly danh muc
-        </h1>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2 text-primary">
+            <div className="h-1 w-8 bg-primary rounded-full" />
+            <span className="text-xs font-black uppercase tracking-widest">Catalog</span>
+          </div>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">
+            Quan ly danh muc
+          </h1>
+        </div>
         <button
           type="button"
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl font-semibold text-sm transition-colors"
+          className="flex items-center gap-2 bg-primary hover:bg-gray-900 text-white px-4 py-2.5 rounded-lg font-bold uppercase tracking-widest text-xs transition-colors"
         >
           <Plus className="w-4 h-4" />
           Them danh muc
@@ -194,7 +200,7 @@ const Categories = () => {
                 value={formData.name}
                 onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
                 placeholder="VD: Laptop Gaming"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -204,7 +210,7 @@ const Categories = () => {
               <select
                 value={formData.parent_id}
                 onChange={(event) => setFormData((prev) => ({ ...prev, parent_id: event.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="">-- Khong chon (tao danh muc cha) --</option>
                 {flatList
@@ -225,7 +231,7 @@ const Categories = () => {
                 value={formData.description}
                 onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))}
                 placeholder="Mo ta ngan ve danh muc..."
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -234,7 +240,7 @@ const Categories = () => {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors"
+              className="bg-primary hover:bg-gray-900 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-colors"
             >
               {submitting ? 'Dang them...' : 'Them danh muc'}
             </button>
@@ -262,7 +268,7 @@ const Categories = () => {
 
         {loading ? (
           <div className="flex justify-center items-center h-48">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" />
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
           </div>
         ) : tree.length === 0 ? (
           <div className="text-center text-gray-400 py-16">
@@ -307,3 +313,4 @@ const Categories = () => {
 };
 
 export default Categories;
+
