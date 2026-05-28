@@ -1,11 +1,13 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 // import { useProducts } from '../../hooks/useProducts';
 import { useEditProduct } from '../../hooks/useEditProduct';
 import AdminVariantManager from '../../components/AdminVariantManager';
 import AIDescriptionGenerator from '../../components/AIDescriptionGenerator';
+import SkuInput from '../../components/SkuInput';
 
 const EditProduct = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   // const { categories, products = [], loading: productsLoading } = useProducts();
   const {
     activeTab,
@@ -141,12 +143,10 @@ const EditProduct = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">SKU</label>
-                <input
-                  type="text"
-                  name="sku"
+                <SkuInput
                   value={formData.sku}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  onChange={(val) => setFormData({ ...formData, sku: val })}
+                  currentId={id}
                 />
               </div>
               <div>

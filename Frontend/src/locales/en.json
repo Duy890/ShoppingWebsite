@@ -386,5 +386,11 @@
     "desc": "We encountered an unexpected error while processing your request.",
     "hint": "Our team has been notified and is working on fixing the issue.",
     "retry": "Try Again"
+  },
+  "menu": {
+    "all_in": "All",
+    "view_all": "View All",
+    "view_details": "View product details",
+    "select_category": "Select a category to view details."
   }
 }

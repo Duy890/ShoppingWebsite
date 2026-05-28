@@ -386,5 +386,11 @@
     "desc": "Chúng tôi đã gặp phải lỗi không mong muốn khi xử lý yêu cầu của bạn.",
     "hint": "Đội ngũ của chúng tôi đã được thông báo và đang làm việc để khắc phục sự cố.",
     "retry": "Thử lại"
+  },
+  "menu": {
+    "all_in": "Tất cả",
+    "view_all": "Xem tất cả",
+    "view_details": "Xem chi tiết sản phẩm",
+    "select_category": "Chọn một danh mục để xem chi tiết."
   }
 }

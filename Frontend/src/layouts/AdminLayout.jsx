@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Navigate } from 'react-router-dom';
-import { FolderTree, Home, LayoutDashboard, LogOut, Package, PlusCircle, ShoppingCart } from 'lucide-react';
+import { FolderTree, Home, LayoutDashboard, LayoutTemplate, LogOut, Package, PlusCircle, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { to: '/admin/products/add', label: 'Add Product', icon: PlusCircle },
   { to: '/admin/categories', label: 'Categories', icon: FolderTree },
   { to: '/admin/orders', label: 'Orders', icon: ShoppingCart },
+  { to: '/admin/spec-templates', label: 'Spec Templates', icon: LayoutTemplate },
 ];
 
 const AdminLayout = () => {

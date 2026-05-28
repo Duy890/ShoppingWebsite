@@ -1,42 +1,48 @@
-import api from './api';
-
-
-const TOKEN_KEY = 'shop_token';
+import api, { setTokens, clearTokens, getRefreshToken } from './api';
 
 export const authService = {
   async signUp(email, password, fullName) {
     const response = await api.post('/auth/register', {
-      email,
-      password,
-      full_name: fullName,
+      email, password, full_name: fullName,
     });
-
-    const { access_token, user } = response.data;
-    localStorage.setItem(TOKEN_KEY, access_token);
+    const { access_token, refresh_token, user } = response.data;
+    setTokens(access_token, refresh_token);
     return user;
   },
 
   async signIn(email, password) {
     const response = await api.post('/auth/login', {
-      email,
-      password,
+      email, password,
     });
-
-    const { access_token, user } = response.data;
-    localStorage.setItem(TOKEN_KEY, access_token);
+    const { access_token, refresh_token, user } = response.data;
+    setTokens(access_token, refresh_token);
     return user;
   },
 
   async signOut() {
-    localStorage.removeItem(TOKEN_KEY);
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await api.post('/auth/logout', { refresh_token: refreshToken });
+      } catch {
+        // ignore network errors on logout
+      }
+    }
+    clearTokens();
+  },
+
+  async logoutAllSessions() {
+    try {
+      await api.post('/auth/logout-all');
+    } catch {
+      // ignore
+    }
+    clearTokens();
   },
 
   async getCurrentUser() {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      return null;
-    }
-
+    const token = localStorage.getItem('shop_token');
+    if (!token) return null;
     try {
       const response = await api.get('/auth/me');
       return response.data;
@@ -46,11 +52,8 @@ export const authService = {
   },
 
   async getProfile(userId) {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      return null;
-    }
-
+    const token = localStorage.getItem('shop_token');
+    if (!token) return null;
     const response = await api.get('/auth/me');
     return response.data;
   },
@@ -63,11 +66,8 @@ export const authService = {
   async uploadAvatar(file) {
     const formData = new FormData();
     formData.append('file', file);
-
     const response = await api.post('/upload-avatar', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
@@ -95,13 +95,40 @@ export const authService = {
     return response.data;
   },
 
-  // NOTE: This is a no-op stub. JWT auth uses axios interceptors (api.js)
-  // for 401 handling. No real-time auth state subscription is needed.
+  async verifyEmailChange(token) {
+    const { data } = await api.get(`/auth/verify-email-change?token=${token}`);
+    return data;
+  },
+
+  async getLoginHistory() {
+    const response = await api.get('/auth/login-history');
+    return response.data;
+  },
+
+  async getMFAStatus() {
+    const response = await api.get('/auth/mfa/status');
+    return response.data;
+  },
+
+  async setupMFA(password) {
+    const response = await api.post('/auth/mfa/setup', { password });
+    return response.data;
+  },
+
+  async verifyMFA(code) {
+    const response = await api.post('/auth/mfa/verify', { token: 'setup', code });
+    return response.data;
+  },
+
+  async disableMFA(password, code) {
+    const response = await api.post('/auth/mfa/disable', { password, code });
+    return response.data;
+  },
+
   onAuthStateChange(callback) {
     return {
-      subscription: {
-        unsubscribe: () => {},
-      },
+      subscription: { unsubscribe: () => {} },
     };
   },
 };
+

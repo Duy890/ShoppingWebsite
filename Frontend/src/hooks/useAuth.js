@@ -57,6 +57,12 @@ export const useAuth = () => {
     dispatch(logoutAction());
   }, [dispatch]);
 
+  const logoutAllSessions = useCallback(async () => {
+    await authService.logoutAllSessions();
+    globalAuthInitialized = false;
+    dispatch(logoutAction());
+  }, [dispatch]);
+
   const updateProfile = useCallback(async (updates) => {
     if (!user?.id) throw new Error('No user ID available');
     const updatedProfile = await authService.updateProfile(user.id, updates);
@@ -72,6 +78,7 @@ export const useAuth = () => {
     signIn,
     signUp,
     logout,
+    logoutAllSessions,
     updateProfile,
   };
 };

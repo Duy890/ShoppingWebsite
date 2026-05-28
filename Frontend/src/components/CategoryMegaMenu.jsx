@@ -6,7 +6,7 @@ import { useNavigation } from '../hooks/useNavigation';
 
 const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
   const navigate = useNavigate();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { navTree, navLoading } = useNavigation();
   const [activeL1Index, setActiveL1Index] = useState(0);
   const closeTimeoutRef = useRef(null);
@@ -102,13 +102,13 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
                 <div className="mb-8 border-b border-gray-100 pb-4 flex items-center justify-between">
                   <h3 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
                     <LayoutGrid className="w-5 h-5 text-primary" />
-                    Tất cả {getItemName(activeL1)}
+                    {t("menu.all_in")} {getItemName(activeL1)}
                   </h3>
                   <button 
                     onClick={() => handleCategoryClick(activeL1.slug)}
                     className="text-xs font-bold text-primary hover:underline uppercase tracking-wider"
                   >
-                    Xem tất cả
+                    {t("menu.view_all")}
                   </button>
                 </div>
                 
@@ -137,7 +137,7 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
                             ))}
                           </div>
                         ) : (
-                          <div className="text-xs text-gray-300 italic">Xem chi tiết sản phẩm</div>
+                          <div className="text-xs text-gray-300 italic">{t("menu.view_details")}</div>
                         )}
                       </div>
                     ))}
@@ -150,7 +150,7 @@ const CategoryMegaMenu = memo(({ isOpen, onDismiss }) => {
               </div>
             ) : !navLoading && (
               <div className="flex h-full items-center justify-center text-gray-400 italic">
-                Chọn một danh mục để xem chi tiết.
+                {t("menu.select_category")}
               </div>
             )}
             

@@ -5,6 +5,8 @@ import { productService } from '../../services/productService';
 import SpecificationEditor from '../../components/SpecificationEditor';
 import AdminVariantManager from '../../components/AdminVariantManager';
 import AIDescriptionGenerator from '../../components/AIDescriptionGenerator';
+import SkuInput from '../../components/SkuInput';
+import ApplyTemplateBar from '../../components/ApplyTemplateBar';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 
 const CATEGORY_TYPE_MAP = {
@@ -219,6 +221,12 @@ const AddProduct = () => {
         return;
       }
 
+      const SKU_REGEX = /^[A-Za-z0-9\-_]{3,50}$/;
+      if (formData.sku && !SKU_REGEX.test(formData.sku.trim())) {
+        setError('SKU không hợp lệ. Chỉ dùng A-Z, 0-9, dấu - và _, tối thiểu 3 ký tự.');
+        return;
+      }
+
       let imageUrl = formData.image_url;
       if (selectedImageFile) {
         const uploadResult = await productService.uploadProductImage(selectedImageFile);
@@ -300,12 +308,10 @@ const AddProduct = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">SKU</label>
-            <input
-              type="text"
-              name="sku"
+            <SkuInput
               value={formData.sku}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              onChange={(val) => setFormData({ ...formData, sku: val })}
+              currentId={null}
             />
           </div>
 
@@ -542,12 +548,29 @@ const AddProduct = () => {
           productType={formData.product_type}
         />
 
-        <SpecificationEditor
-          productType={formData.product_type}
-          onProductTypeChange={(productType) => setFormData({ ...formData, product_type: productType })}
-          specifications={specifications}
-          onChange={setSpecifications}
-        />
+        <div>
+          <ApplyTemplateBar
+            productType={formData.product_type}
+            onApply={(rows) => {
+              setSpecifications((prev) => {
+                const hasUserData = prev.some((r) => !r.isGroup && r.spec_value?.trim());
+                if (hasUserData) {
+                  const confirmed = window.confirm(
+                    'Áp dụng template sẽ thay thế các spec hiện tại. Tiếp tục?'
+                  );
+                  if (!confirmed) return prev;
+                }
+                return rows;
+              });
+            }}
+          />
+          <SpecificationEditor
+            productType={formData.product_type}
+            onProductTypeChange={(productType) => setFormData({ ...formData, product_type: productType })}
+            specifications={specifications}
+            onChange={setSpecifications}
+          />
+        </div>
 
         <div className="flex items-center justify-end gap-4">
           <button

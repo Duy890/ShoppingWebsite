@@ -3,24 +3,24 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
-import openai  # already in project requirements
+import openai
+
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+_MAX_HISTORY_TURNS = 6
+_MAX_SPEC_CHARS = 120
+_MAX_PRODUCTS_IN_PROMPT = 5
+
+_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
 # ---------------------------------------------------------------------------
-# Config — reads from pydantic Settings (which loads .env automatically)
+# System prompts (one per intent, from the original openrouter_formatter.py)
 # ---------------------------------------------------------------------------
-from app.core.config import get_settings
-
-_MAX_HISTORY_TURNS = 6          # keep last N user+assistant pairs
-_MAX_SPEC_CHARS    = 120        # truncate very long spec values
-_MAX_PRODUCTS_IN_PROMPT = 5     # never dump more than this into the prompt
-
-
-# ===========================================================================
-# SYSTEM PROMPTS  (one per intent)
-# ===========================================================================
 
 _BASE_RULES = """\
 ## Ground rules — follow at all times
@@ -41,8 +41,6 @@ narrow down their decision (unless the intent is order_help or unknown).\
 """
 
 _INTENT_SYSTEM_PROMPTS: dict[str, str] = {
-
-    # -------------------------------------------------------------------
     "search_product": _BASE_RULES + """
 
 ## Your task — search_product
@@ -51,9 +49,11 @@ The backend has returned a list of matching products.
 2. Highlight the top 2-3 options with: name, price, one-line key spec summary, stock status.
 3. If a product is out of stock, say so clearly.
 4. Do NOT list every product if there are many — pick the most relevant ones.
+5. When presenting RAM and Storage, use ONLY the values from top_specs in <backend_data>. \
+Do NOT infer specs from the product name. If top_specs is empty or missing RAM/Storage, \
+write 'Chưa có thông tin' instead of guessing.
 """,
 
-    # -------------------------------------------------------------------
     "recommend_product": _BASE_RULES + """
 
 ## Your task — recommend_product
@@ -64,9 +64,11 @@ any notable trade-off.
 3. If a budget constraint was detected, acknowledge it explicitly.
 4. Rank from most-recommended to least — the first product is your top pick.
 5. Be opinionated but fair — users want a clear recommendation, not a list dump.
+6. When presenting RAM and Storage, use ONLY the values from top_specs in <backend_data>. \
+Do NOT infer specs from the product name. If top_specs is empty or missing RAM/Storage, \
+write 'Chưa có thông tin' instead of guessing.
 """,
 
-    # -------------------------------------------------------------------
     "compare_products": _BASE_RULES + """
 
 ## Your task — compare_products
@@ -83,7 +85,6 @@ Format the table as Markdown:
 |------|-----------|-----------|
 """,
 
-    # -------------------------------------------------------------------
     "gaming_capability": _BASE_RULES + """
 
 ## Your task — gaming_capability
@@ -119,7 +120,6 @@ This is the most important case to handle gracefully.
 5. Never fabricate benchmark numbers not in <backend_data>.
 """,
 
-    # -------------------------------------------------------------------
     "spec_explanation": _BASE_RULES + """
 
 ## Your task — spec_explanation
@@ -130,7 +130,6 @@ The user wants to understand a technical specification or term.
 4. Keep it short — 3-5 sentences is ideal for a spec explanation.
 """,
 
-    # -------------------------------------------------------------------
     "order_help": _BASE_RULES + """
 
 ## Your task — order_help
@@ -142,7 +141,6 @@ and do NOT invent order statuses or tracking numbers.
 4. Do NOT ask a follow-up question at the end — this is a support context.
 """,
 
-    # -------------------------------------------------------------------
     "unknown": _BASE_RULES + """
 
 ## Your task — unknown intent
@@ -154,27 +152,34 @@ The backend could not classify the user's request.
 """,
 }
 
-# Fallback for any intent not listed above
 _DEFAULT_SYSTEM_PROMPT = _INTENT_SYSTEM_PROMPTS["unknown"]
 
 
-# ===========================================================================
-# DATA SERIALISER  (keeps prompt lean)
-# ===========================================================================
+# ---------------------------------------------------------------------------
+# Data serialisation
+# ---------------------------------------------------------------------------
+
+def _truncate_val(val: str | None, limit: int = 80) -> str | None:
+    if val is None:
+        return None
+    return val if len(val) <= limit else val[:limit] + "\u2026"
+
 
 def _slim_product(p: dict[str, Any]) -> dict[str, Any]:
-    """Keep only the fields the LLM needs; truncate long values."""
-    keep = ["id", "name", "brand", "price", "category", "rating",
-            "review_count", "stock"]
+    keep = ["id", "name", "brand", "price", "category", "rating", "review_count", "stock"]
     out = {k: p[k] for k in keep if k in p and p[k] is not None}
-    # Normalise price display
     if "price" in out and out["price"] is not None:
         out["price_display"] = f"{out['price']:,.0f} VND"
+    top_specs = p.get("top_specs")
+    if top_specs and isinstance(top_specs, dict):
+        out["top_specs"] = {
+            group: {key: _truncate_val(val) for key, val in specs.items()}
+            for group, specs in top_specs.items()
+        }
     return out
 
 
 def _slim_spec_fields(fields: dict[str, Any]) -> dict[str, Any]:
-    """For compare_products: trim spec values, remove all-null fields."""
     slimmed: dict[str, Any] = {}
     for field, entries in fields.items():
         values = []
@@ -183,16 +188,14 @@ def _slim_spec_fields(fields: dict[str, Any]) -> dict[str, Any]:
             if val is None:
                 val = "Not specified"
             elif isinstance(val, str) and len(val) > _MAX_SPEC_CHARS:
-                val = val[:_MAX_SPEC_CHARS] + "…"
+                val = val[:_MAX_SPEC_CHARS] + "\u2026"
             values.append({"product": e.get("product_name", "?"), "value": val})
-        # Skip field if every product has "Not specified"
         if any(v["value"] != "Not specified" for v in values):
             slimmed[field] = values
     return slimmed
 
 
 def _slim_evaluation(ev: dict[str, Any]) -> dict[str, Any]:
-    """For gaming: strip verbose strengths/limitations to essentials."""
     out: dict[str, Any] = {}
     if "product" in ev:
         out["product"] = _slim_product(ev["product"])
@@ -203,46 +206,30 @@ def _slim_evaluation(ev: dict[str, Any]) -> dict[str, Any]:
 
 
 def _serialise_data(intent: str, data: Any) -> str:
-    """
-    Convert backend data to a compact JSON string suited for the LLM.
-    Caps the number of products and removes nulls.
-    """
     if data is None:
         return "null"
-
     try:
         if intent == "search_product" and isinstance(data, list):
-            slim = [_slim_product(p) for p in data[:_MAX_PRODUCTS_IN_PROMPT]]
-            return json.dumps(slim, ensure_ascii=False, indent=2)
-
+            return json.dumps([_slim_product(p) for p in data[:_MAX_PRODUCTS_IN_PROMPT]], ensure_ascii=False, indent=2)
         if intent == "recommend_product" and isinstance(data, list):
-            slim = [_slim_product(p) for p in data[:_MAX_PRODUCTS_IN_PROMPT]]
-            return json.dumps(slim, ensure_ascii=False, indent=2)
-
+            return json.dumps([_slim_product(p) for p in data[:_MAX_PRODUCTS_IN_PROMPT]], ensure_ascii=False, indent=2)
         if intent == "compare_products" and isinstance(data, dict):
             slim = {
                 "products": [_slim_product(p) for p in data.get("products", [])],
-                "fields":   _slim_spec_fields(data.get("fields", {})),
-                "note":     data.get("note"),
+                "fields": _slim_spec_fields(data.get("fields", {})),
+                "note": data.get("note"),
             }
             return json.dumps(slim, ensure_ascii=False, indent=2)
-
         if intent == "gaming_capability" and isinstance(data, dict):
             slim: dict[str, Any] = {}
             has_game = bool(data.get("game"))
             slim["no_game_specified"] = not has_game
-
             if has_game:
                 slim["game"] = data["game"]
             if data.get("direct_evaluation"):
                 slim["direct_evaluation"] = _slim_evaluation(data["direct_evaluation"])
             if data.get("products"):
-                evaluated = [
-                    _slim_evaluation(ev)
-                    for ev in data["products"][:_MAX_PRODUCTS_IN_PROMPT]
-                ]
-                # When no game: keep only product card + raw hardware, drop
-                # meaningless capability="unknown" entries
+                evaluated = [_slim_evaluation(ev) for ev in data["products"][:_MAX_PRODUCTS_IN_PROMPT]]
                 if not has_game:
                     cleaned = []
                     for ev in evaluated:
@@ -256,51 +243,33 @@ def _serialise_data(intent: str, data: Any) -> str:
                     slim["products"] = cleaned
                 else:
                     slim["products"] = evaluated
-            # Only surface alternatives when a game is known AND adds value
             if has_game and data.get("alternatives"):
-                slim["alternatives"] = [
-                    _slim_product(p) for p in data["alternatives"][:3]
-                ]
+                slim["alternatives"] = [_slim_product(p) for p in data["alternatives"][:3]]
             if data.get("explanation"):
                 slim["explanation"] = data["explanation"]
             return json.dumps(slim, ensure_ascii=False, indent=2)
-
-        # Generic fallback: strip top-level None values
         if isinstance(data, dict):
-            clean = {k: v for k, v in data.items() if v is not None}
-            return json.dumps(clean, ensure_ascii=False, indent=2)
-
+            return json.dumps({k: v for k, v in data.items() if v is not None}, ensure_ascii=False, indent=2)
         return json.dumps(data, ensure_ascii=False, indent=2)
-
     except (TypeError, ValueError) as exc:
         logger.warning("Data serialisation failed: %s", exc)
         return str(data)[:500]
 
 
-# ===========================================================================
-# PROMPT BUILDER
-# ===========================================================================
+# ---------------------------------------------------------------------------
+# Prompt builder
+# ---------------------------------------------------------------------------
 
-def _build_user_prompt(
+def build_prompt(
     intent: str,
     entities: dict,
     data: Any,
     original_message: str,
-    user_message: str | None,
+    user_message: str | None = None,
 ) -> str:
-    """
-    Assembles the user-turn prompt with clearly separated sections
-    so the model never confuses data with instructions.
-    """
     data_block = _serialise_data(intent, data)
-
-    # Compact entity summary (skip empty lists)
-    entity_lines = []
-    for key, val in entities.items():
-        if val:
-            entity_lines.append(f"  {key}: {json.dumps(val, ensure_ascii=False)}")
+    entity_lines = [f"  {key}: {json.dumps(val, ensure_ascii=False)}" for key, val in entities.items() if val]
     entity_block = "\n".join(entity_lines) if entity_lines else "  (none detected)"
-
     raw_question = user_message or original_message or "(no message)"
 
     return f"""\
@@ -328,24 +297,71 @@ you couldn't find a match.\
 
 
 def _trim_history(history: list[dict]) -> list[dict]:
-    """Keep last N complete turns (user + assistant pairs)."""
     if not history:
         return []
-    # Ensure we have pairs
-    pairs: list[dict] = []
-    for msg in history:
-        if msg.get("role") in ("user", "assistant") and msg.get("content"):
-            pairs.append({"role": msg["role"], "content": str(msg["content"])[:800]})
-    # Take last _MAX_HISTORY_TURNS * 2 messages
-    return pairs[-(  _MAX_HISTORY_TURNS * 2):]
+    pairs = [{"role": m["role"], "content": str(m.get("content", ""))[:800]}
+             for m in history if m.get("role") in ("user", "assistant") and m.get("content")]
+    return pairs[-(_MAX_HISTORY_TURNS * 2):]
 
 
-# ===========================================================================
-# FORMATTER CLASS
-# ===========================================================================
+def _get_system_prompt(intent: str, site_name: str) -> str:
+    prompt = _INTENT_SYSTEM_PROMPTS.get(intent, _DEFAULT_SYSTEM_PROMPT)
+    return prompt.replace("{site_name}", site_name)
+
+
+# ---------------------------------------------------------------------------
+# OpenRouter client
+# ---------------------------------------------------------------------------
+
+def _call_openrouter_urllib(
+    system_prompt: str,
+    messages: list[dict[str, str]],
+    model: str | None = None,
+    max_tokens: int = 600,
+    temperature: float = 0.7,
+) -> str:
+    """Low-level OpenRouter call using urllib (used by classifier)."""
+    settings = get_settings()
+    resolved_model = model or settings.OPENROUTER_MODEL
+    resolved_key = (settings.OPENROUTER_API_KEY or "").strip()
+    if not resolved_key:
+        return "Xin loi, chatbot dang bao tri."
+    try:
+        request = Request(
+            _OPENROUTER_URL,
+            data=json.dumps({
+                "model": resolved_model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    *messages,
+                ],
+            }).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {resolved_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://eshop.local",
+            },
+            method="POST",
+        )
+        with urlopen(request, timeout=30) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return data["choices"][0]["message"]["content"].strip()
+    except HTTPError as exc:
+        return f"Xin loi, co loi xay ra: OpenRouter HTTP {exc.code}"
+    except URLError as exc:
+        return f"Xin loi, co loi ket noi: {str(exc.reason)[:100]}"
+    except Exception as exc:
+        return f"Xin loi, co loi xay ra: {str(exc)[:100]}"
+
+
+# ---------------------------------------------------------------------------
+# Formatter class
+# ---------------------------------------------------------------------------
 
 class OpenRouterFormatter:
-    """Advanced LLM formatter using OpenRouter via the openai SDK."""
+    """High-level formatter for chatbot responses via OpenRouter."""
 
     def __init__(self) -> None:
         self._cached_api_key: str | None = None
@@ -388,7 +404,17 @@ class OpenRouterFormatter:
             )
         return self._cached_client
 
-    # ------------------------------------------------------------------
+    def call_openrouter_direct(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        max_tokens: int = 200,
+        temperature: float = 0.1,
+    ) -> str:
+        """Direct OpenRouter call via urllib (for classifier — no openai SDK dependency)."""
+        return _call_openrouter_urllib(system_prompt, messages, model, max_tokens, temperature)
+
     def format_response(
         self,
         intent: str,
@@ -399,32 +425,17 @@ class OpenRouterFormatter:
         history: list[dict] | None = None,
         user_message: str | None = None,
     ) -> str:
-        """
-        Format a chatbot response via OpenRouter.
+        """Generate a natural-language response via OpenRouter.
 
-        Parameters
-        ----------
-        intent          : intent string from intent_engine.detect_intent()
-        entities        : entities dict from intent_engine.extract_entities()
-        data            : structured data from the matching engine
-        original_message: plain-text fallback / pre-formatted message
-        history         : (optional) list of previous {"role", "content"} dicts
-        user_message    : (optional) raw user text (used verbatim in prompt)
-
-        Returns
-        -------
-        Formatted markdown string, or original_message on failure.
+        Returns markdown text on success, or *original_message* on failure
+        (e.g. API key missing, network error).
         """
         client = self.client
         if not self.enabled or client is None:
             return original_message
 
-        system_prompt = _INTENT_SYSTEM_PROMPTS.get(intent, _DEFAULT_SYSTEM_PROMPT)
-        system_prompt = system_prompt.replace("{site_name}", self.site_name)
-
-        user_prompt = _build_user_prompt(
-            intent, entities, data, original_message, user_message
-        )
+        system_prompt = _get_system_prompt(intent, self.site_name)
+        user_prompt = build_prompt(intent, entities, data, original_message, user_message)
 
         messages: list[dict] = [{"role": "system", "content": system_prompt}]
         messages.extend(_trim_history(history or []))
@@ -433,12 +444,12 @@ class OpenRouterFormatter:
         try:
             completion = client.chat.completions.create(
                 model=self.model,
-                messages=messages,          # type: ignore[arg-type]
+                messages=messages,
                 temperature=0.3,
                 max_tokens=self.max_tokens,
                 extra_headers={
                     "HTTP-Referer": self.site_url,
-                    "X-Title":      self.site_name,
+                    "X-Title": self.site_name,
                 },
                 timeout=30,
             )
@@ -452,11 +463,10 @@ class OpenRouterFormatter:
             logger.error("OpenRouter connection error: %s", exc)
         except (AttributeError, IndexError, ValueError) as exc:
             logger.error("OpenRouter response parse error: %s", exc)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("OpenRouter unexpected error: %s", exc)
 
         return original_message
 
 
-# Module-level singleton
 openrouter_formatter = OpenRouterFormatter()

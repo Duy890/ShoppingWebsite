@@ -43,7 +43,11 @@ class Settings(BaseSettings):
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
+
     ALGORITHM: str = "HS256"
+
+    MFA_CHALLENGE_EXPIRE_SECONDS: int = 300  # 5 minutes
 
     # =====================================================
     # LEGACY OPENAI SUPPORT

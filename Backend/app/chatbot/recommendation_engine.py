@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 from sqlalchemy.orm import Session
 
-from app.chatbot.product_utils import product_query, product_text, product_to_card
+from app import models
+from .base import ChatEngine
+from .schemas import ChatContext, EngineResult, ProductCard
+from .product_utils import product_query, product_text, product_to_card
 
 
 USE_CASE_TERMS = {
@@ -11,6 +16,25 @@ USE_CASE_TERMS = {
 }
 
 
+class RecommendationEngine(ChatEngine):
+    """Scoring-based product recommendation engine."""
+
+    def handle(self, ctx: ChatContext) -> EngineResult:
+        entities = ctx.intent_result.entities if ctx.intent_result else {}
+        products = recommend_products(ctx.db, entities, ctx.message)
+        product_cards = [
+            ProductCard(**{k: v for k, v in p.items() if k in ProductCard.__dataclass_fields__})
+            for p in products
+        ]
+        return EngineResult(
+            recommendations=product_cards,
+            response_context={"recommendation_data": products},
+        )
+
+
+recommendation_engine = RecommendationEngine()
+
+
 def recommend_products(db: Session, entities: dict, message: str, limit: int = 5) -> list[dict]:
     price_range = _primary_price_range(entities)
     use_cases = _detect_use_cases(message)
@@ -19,14 +43,11 @@ def recommend_products(db: Session, entities: dict, message: str, limit: int = 5
 
     products = product_query(db).all()
     scored = []
-
     for product in products:
         if price_range and not _within_budget(product.price, price_range):
             continue
-
         text = product_text(product)
         score = 0
-
         if product.featured:
             score += 2
         if product.rating:
@@ -39,10 +60,8 @@ def recommend_products(db: Session, entities: dict, message: str, limit: int = 5
             score += 3
         for use_case in use_cases:
             score += sum(1 for term in USE_CASE_TERMS[use_case] if term in text)
-
         if score > 0 or price_range:
             scored.append((score, product.rating or 0, product.review_count or 0, product))
-
     scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
     return [product_to_card(item[3]) for item in scored[:limit]]
 

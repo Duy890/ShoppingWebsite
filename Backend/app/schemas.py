@@ -18,6 +18,79 @@ class ChangePasswordRequest(BaseModel):
 class EmailChangeRequest(BaseModel):
     new_email: EmailStr
 
+# ── Refresh Token ──
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+# ── MFA ──
+
+class MFAEnableRequest(BaseModel):
+    password: str
+
+class MFAVerifyRequest(BaseModel):
+    token: str
+    code: str
+
+class MFADisableRequest(BaseModel):
+    password: str
+    code: str
+
+class MFASetupResponse(BaseModel):
+    secret: str
+    qr_code_url: str
+
+class MFAStatusResponse(BaseModel):
+    mfa_enabled: bool
+
+
+class MFAChallengeVerifyRequest(BaseModel):
+    challenge_token: str
+    code: str = Field(..., min_length=6, max_length=6)
+
+
+class LoginResponse(BaseModel):
+    access_token: str = ""
+    refresh_token: str = ""
+    token_type: str = "bearer"
+    user: Optional["UserResponse"] = None
+    mfa_required: bool = False
+    mfa_challenge_token: str = ""
+
+# ── Audit Log ──
+
+class AuditLogRead(BaseModel):
+    id: str
+    user_id: str
+    action: str
+    resource_type: Optional[str] = None
+    resource_id: Optional[str] = None
+    details: Optional[Any] = None
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+# ── Login History ──
+
+class LoginHistoryRead(BaseModel):
+    id: str
+    user_id: str
+    ip_address: Optional[str] = None
+    user_agent: Optional[str] = None
+    success: bool
+    fail_reason: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
 class MoMoPaymentRequest(BaseModel):
     order_id: str
     amount: int
@@ -45,6 +118,7 @@ class MoMoIPNPayload(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str = ""
     token_type: str
 
 
@@ -298,6 +372,13 @@ class ProductSpecificationRead(ProductSpecificationBase):
 
 class ProductSpecificationBulkSave(BaseModel):
     specifications: List[ProductSpecificationCreate]
+
+
+class SpecTemplateCreate(BaseModel):
+    product_type: str
+    group_name: str
+    spec_key: str
+    default_order: int = 0
 
 
 class SpecTemplateRead(BaseModel):
