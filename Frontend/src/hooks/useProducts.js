@@ -24,7 +24,6 @@ export const useProducts = () => {
 
   const requestIdRef = useRef(0);
   const loadingRef = useRef(false);
-  const isInitialMountRef = useRef(true);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -35,17 +34,20 @@ export const useProducts = () => {
     }
   }, [dispatch]);
 
-  const loadProducts = useCallback(async (overrideFilters) => {
-    const requestFilters = overrideFilters ?? { ...filters, page: pagination.page, limit: pagination.limit };
+  const loadProducts = useCallback(async (explicitFilters) => {
+    if (!explicitFilters) {
+      console.warn('[useProducts] loadProducts called without filters, skipping');
+      return;
+    }
     if (loadingRef.current) return;
     loadingRef.current = true;
 
     const requestId = ++requestIdRef.current;
-    console.log('[useProducts] loadProducts requestId:', requestId, 'filters:', requestFilters);
+    console.log('[useProducts] loadProducts requestId:', requestId, 'filters:', explicitFilters);
 
     try {
       dispatch(setLoading(true));
-      const data = await productService.getProducts(requestFilters);
+      const data = await productService.getProducts(explicitFilters);
       if (requestId !== requestIdRef.current) {
         console.log('[useProducts] Stale response ignored, requestId:', requestId, 'current:', requestIdRef.current);
         return;
@@ -64,21 +66,11 @@ export const useProducts = () => {
       loadingRef.current = false;
       dispatch(setLoading(false));
     }
-  }, [dispatch, filters.category, filters.type, filters.brand, filters.search, filters.sortBy, filters.featured, pagination.page, pagination.limit]);
+  }, [dispatch]);
 
   useEffect(() => {
     loadCategories();
   }, []);
-
-  useEffect(() => {
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      return;
-    }
-    if (loadingRef.current) return;
-    requestIdRef.current = 0;
-    loadProducts();
-  }, [loadProducts]);
 
   useEffect(() => {
     return () => {
@@ -105,7 +97,7 @@ export const useProducts = () => {
       dispatch(setLoading(true));
       const data = await productService.createProduct(product);
       dispatch(setPagination({ page: 1 }));
-      await loadProducts();
+      await loadProducts({ ...filters, page: 1, limit: pagination.limit });
       return data;
     } catch (err) {
       dispatch(setError(err.message));
@@ -113,7 +105,7 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  }, [dispatch, loadProducts]);
+  }, [dispatch, loadProducts, filters, pagination.limit]);
 
   const createCategory = useCallback(async (category) => {
     try {
@@ -146,7 +138,7 @@ export const useProducts = () => {
     try {
       dispatch(setLoading(true));
       const data = await productService.updateProduct(id, updates);
-      await loadProducts();
+      await loadProducts({ ...filters, page: pagination.page, limit: pagination.limit });
       return data;
     } catch (err) {
       dispatch(setError(err.message));
@@ -154,20 +146,20 @@ export const useProducts = () => {
     } finally {
       dispatch(setLoading(false));
     }
-  }, [dispatch, loadProducts]);
+  }, [dispatch, loadProducts, filters, pagination.page, pagination.limit]);
 
   const deleteProduct = useCallback(async (id) => {
     try {
       dispatch(setLoading(true));
       await productService.deleteProduct(id);
-      await loadProducts();
+      await loadProducts({ ...filters, page: pagination.page, limit: pagination.limit });
     } catch (err) {
       dispatch(setError(err.message));
       throw err;
     } finally {
       dispatch(setLoading(false));
     }
-  }, [dispatch, loadProducts]);
+  }, [dispatch, loadProducts, filters, pagination.page, pagination.limit]);
 
   const updateFilters = useCallback((newFilters) => {
     dispatch(setFilters(newFilters));

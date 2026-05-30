@@ -9,6 +9,18 @@ from ..core.config import get_settings
 
 def create_momo_payment(amount: int, order_id: str, order_info: str) -> dict:
     s = get_settings()
+
+    required = {
+        "MOMO_PARTNER_CODE": s.MOMO_PARTNER_CODE,
+        "MOMO_ACCESS_KEY": s.MOMO_ACCESS_KEY,
+        "MOMO_SECRET_KEY": s.MOMO_SECRET_KEY,
+        "MOMO_IPN_URL": s.MOMO_IPN_URL,
+        "MOMO_REDIRECT_URL": s.MOMO_REDIRECT_URL,
+    }
+    missing = [k for k, v in required.items() if not v]
+    if missing:
+        raise ValueError(f"Missing MoMo config: {', '.join(missing)}")
+
     partner_code = s.MOMO_PARTNER_CODE
     access_key = s.MOMO_ACCESS_KEY
     secret_key = s.MOMO_SECRET_KEY

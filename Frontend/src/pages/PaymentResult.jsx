@@ -2,18 +2,30 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { useCart } from '../hooks/useCart';
+import { orderService } from '../services/orderService';
 
 const PaymentResult = () => {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState('loading');
+  const { clearCart } = useCart();
 
   useEffect(() => {
     const resultCode = searchParams.get('resultCode');
+    const pendingOrderId = sessionStorage.getItem('pendingOrderId');
+
     if (resultCode === '0') {
       setStatus('success');
+      clearCart();
+      sessionStorage.removeItem('pendingOrderId');
     } else if (resultCode !== null) {
       setStatus('failed');
+      if (pendingOrderId) {
+        orderService.cancelMoMoOrder(pendingOrderId)
+          .catch(err => console.error('Cancel order failed:', err))
+          .finally(() => sessionStorage.removeItem('pendingOrderId'));
+      }
     } else {
       setStatus('unknown');
     }
@@ -66,6 +78,14 @@ const PaymentResult = () => {
         )}
 
         <div className="flex flex-col gap-3">
+          {status === 'failed' && (
+            <Link
+              to="/checkout"
+              className="w-full bg-primary text-white py-3 rounded-2xl font-bold text-sm text-center"
+            >
+              {t('payment_result.retry_checkout')}
+            </Link>
+          )}
           <Link
             to="/profile"
             className="w-full bg-primary text-white py-3 rounded-2xl font-bold hover:bg-orange-600 transition-colors text-sm"

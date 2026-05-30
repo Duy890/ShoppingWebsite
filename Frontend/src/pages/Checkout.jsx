@@ -90,7 +90,6 @@ const Checkout = () => {
       console.log('ORDER PAYLOAD', JSON.stringify(orderData, null, 2));
 
       const order = await orderService.createOrder(orderData);
-      await clearCart();
 
       if (formData.paymentMethod === PAYMENT_METHODS.MOMO) {
         toast.loading(t('checkout.momo_redirect'));
@@ -100,12 +99,14 @@ const Checkout = () => {
           t('checkout.momo_order_description', { orderId: order.id.slice(0, 8) })
         );
         if (momoResult.result_code === 0 && momoResult.pay_url) {
+          sessionStorage.setItem('pendingOrderId', order.id);
           window.location.href = momoResult.pay_url;
         } else {
           toast.error(`MoMo: ${momoResult.message}`);
         }
       } else {
         toast.success('Order placed successfully!');
+        await clearCart();
         navigate('/profile');
       }
     } catch (error) {

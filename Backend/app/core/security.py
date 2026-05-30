@@ -70,7 +70,8 @@ def hash_token(raw_token: str) -> str:
 
 
 def generate_totp_secret() -> str:
-    return secrets.token_hex(20)
+    import pyotp
+    return pyotp.random_base32()
 
 
 def create_mfa_challenge_token(subject: str, expires_delta: timedelta | None = None) -> tuple[str, str, datetime]:

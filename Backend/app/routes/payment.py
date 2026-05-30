@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from .. import models, schemas
+from .. import models, repositories, schemas
 from ..services import payment_service, order_service
 from ..core.database import get_db
 from ..deps import get_current_user
@@ -58,3 +58,23 @@ def momo_ipn(payload: schemas.MoMoIPNPayload, db: Session = Depends(get_db)):
         print(f"IPN processing error: {e}")
 
     return {"status": "ok"}
+
+
+@router.post("/payment/momo/cancel/{order_id}")
+def cancel_momo_order(
+    order_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Cancel order khi user hủy hoặc thanh toán MoMo thất bại."""
+    order = repositories.get_order_by_id(db, order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not your order")
+    if order.status not in ("pending", "payment_failed"):
+        raise HTTPException(status_code=400, detail=f"Cannot cancel order in status '{order.status}'")
+    order_service.update_order_status_with_history(
+        db, order_id, "cancelled", "Cancelled by user after failed MoMo payment", current_user.id
+    )
+    return {"message": "Order cancelled"}

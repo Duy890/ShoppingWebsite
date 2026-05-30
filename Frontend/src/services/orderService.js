@@ -40,4 +40,9 @@ export const orderService = {
     const { data } = await api.post(`/admin/orders/${orderId}/simulate-next`);
     return data;
   },
+
+  async cancelMoMoOrder(orderId) {
+    const response = await api.post(`/payment/momo/cancel/${orderId}`);
+    return response.data;
+  },
 };
