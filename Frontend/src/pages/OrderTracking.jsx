@@ -51,6 +51,8 @@ const OrderTracking = () => {
   const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     loadOrderTracking();
@@ -71,6 +73,20 @@ const OrderTracking = () => {
       toast.error(t('order_tracking.not_found'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCancelOrder = async () => {
+    try {
+      setCancelling(true);
+      await orderService.cancelOrder(orderId);
+      toast.success('Đơn hàng đã được huỷ thành công.');
+      setShowCancelModal(false);
+      await loadOrderTracking();
+    } catch (err) {
+      toast.error(err.message || 'Huỷ đơn hàng thất bại.');
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -129,6 +145,16 @@ const OrderTracking = () => {
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">{t('order_tracking.title')}</h1>
           <p className="text-gray-600 mt-2">{t('order_tracking.order_id')} #{order.id}</p>
+
+          {order.status === 'pending' && (
+            <button
+              onClick={() => setShowCancelModal(true)}
+              className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-red-400 text-red-600 font-semibold text-sm hover:bg-red-50 transition-colors"
+            >
+              <AlertCircle className="h-4 w-4" />
+              Huỷ đơn hàng
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -327,6 +353,66 @@ const OrderTracking = () => {
           </div>
         </div>
       </div>
+
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 animate-fade-in">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-yellow-50 flex items-center justify-center">
+                <AlertCircle className="h-9 w-9 text-yellow-500" />
+              </div>
+            </div>
+
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              Xác nhận huỷ đơn hàng
+            </h3>
+
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-5">
+              <p className="text-sm text-yellow-800 text-center leading-relaxed">
+                ⚠️ Bạn có chắc chắn muốn <strong>huỷ đơn hàng #{orderId}</strong> không?
+                <br />
+                Hành động này <strong>không thể hoàn tác</strong>.
+                Đơn hàng sẽ bị huỷ và bạn sẽ không thể khôi phục lại.
+              </p>
+            </div>
+
+            <div className="bg-gray-50 rounded-xl p-3 mb-6 text-sm text-gray-700">
+              <div className="flex justify-between">
+                <span>Tổng tiền:</span>
+                <span className="font-bold">{formatPrice(Number(order?.total_amount || 0))}</span>
+              </div>
+              <div className="flex justify-between mt-1">
+                <span>Trạng thái hiện tại:</span>
+                <span className="text-yellow-600 font-semibold">Chờ xác nhận</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={cancelling}
+                className="flex-1 py-3 rounded-full border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Không, giữ lại
+              </button>
+              <button
+                onClick={handleCancelOrder}
+                disabled={cancelling}
+                className="flex-1 py-3 rounded-full bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader className="h-4 w-4 animate-spin" />
+                    Đang huỷ...
+                  </>
+                ) : (
+                  'Xác nhận huỷ'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

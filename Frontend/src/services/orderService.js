@@ -45,4 +45,12 @@ export const orderService = {
     const response = await api.post(`/payment/momo/cancel/${orderId}`);
     return response.data;
   },
+
+  async cancelOrder(orderId) {
+    const { data } = await api.put(`/orders/${orderId}/status`, {
+      status: 'cancelled',
+      note: 'Cancelled by customer',
+    });
+    return data;
+  },
 };

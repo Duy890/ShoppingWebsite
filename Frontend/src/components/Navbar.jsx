@@ -193,46 +193,49 @@ const Navbar = memo(() => {
               <span className="text-3xl font-extrabold tracking-tighter">e-shop.</span>
             </Link>
 
-            <div className="hidden md:flex flex-1 max-w-3xl items-center gap-2 relative">
-              <button
-                type="button"
-                className="inline-flex items-center space-x-2 px-4 py-3 bg-white text-gray-700 rounded-l-full font-semibold text-sm hover:text-primary transition-colors"
-                onMouseEnter={() => setIsMegaOpen(true)}
-                onClick={() => setIsMegaOpen((value) => !value)}
-              >
-                <span>{t('navbar.categories')}</span>
-                <ChevronDown className="w-4 h-4" />
-              </button>
+            <div className="hidden md:flex flex-1 max-w-3xl items-center relative">
+              <div className="flex flex-1 items-center bg-white rounded-full shadow-sm border border-gray-200 overflow-hidden focus-within:ring-2 focus-within:ring-primary/30">
 
-              <div className="relative flex-1">
-                <form onSubmit={handleSearch} className="relative">
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => updateSearchTerm(e.target.value)}
-                    onFocus={() => searchTerm.trim() && setIsSuggestionsOpen(true)}
-                    onKeyDown={handleSearchKeyDown}
-                    placeholder={t('navbar.search_placeholder')}
-                    className="w-full bg-white text-gray-900 text-sm rounded-full py-3 pl-4 pr-14 shadow-sm border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 px-4 py-3 text-gray-700 font-semibold text-sm hover:text-primary transition-colors whitespace-nowrap border-r border-gray-200 flex-shrink-0"
+                  onMouseEnter={() => setIsMegaOpen(true)}
+                  onClick={() => setIsMegaOpen((value) => !value)}
+                >
+                  <span>{t('navbar.categories')}</span>
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+
+                <div className="relative flex-1">
+                  <form onSubmit={handleSearch} className="relative">
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => updateSearchTerm(e.target.value)}
+                      onFocus={() => searchTerm.trim() && setIsSuggestionsOpen(true)}
+                      onKeyDown={handleSearchKeyDown}
+                      placeholder={t('navbar.search_placeholder')}
+                      className="w-full bg-transparent text-gray-900 text-sm py-3 pl-4 pr-12 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                    >
+                      <Search className="w-5 h-5" />
+                    </button>
+                  </form>
+
+                  <SearchSuggestions
+                    suggestions={suggestions}
+                    query={searchTerm}
+                    activeIndex={activeSuggestion}
+                    loading={loadingSuggestions}
+                    isOpen={isSuggestionsOpen}
+                    onSelect={handleSuggestionSelect}
+                    onClear={clearSuggestions}
                   />
-                  <button
-                    type="submit"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-primary transition-colors"
-                  >
-                    <Search className="w-5 h-5" />
-                  </button>
-                </form>
-
-                <SearchSuggestions
-                  suggestions={suggestions}
-                  query={searchTerm}
-                  activeIndex={activeSuggestion}
-                  loading={loadingSuggestions}
-                  isOpen={isSuggestionsOpen}
-                  onSelect={handleSuggestionSelect}
-                  onClear={clearSuggestions}
-                />
+                </div>
               </div>
 
               <CategoryMegaMenu
