@@ -4,10 +4,10 @@ except ImportError:
     from pydantic_settings import BaseSettings
 
 from typing import Optional
-
+    
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql+psycopg2://postgres:password@localhost:5432/shopdb"
+    DATABASE_URL: str = "mysql+pymysql://root:123456@localhost:3306/eshop"
     SECRET_KEY: str = "replace-me-with-a-secure-key"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
     ALGORITHM: str = "HS256"
