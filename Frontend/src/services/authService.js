@@ -14,6 +14,25 @@ export const authService = {
     const response = await api.post('/auth/login', {
       email, password,
     });
+    const data = response.data;
+
+    if (data.mfa_required) {
+      return {
+        mfa_required: true,
+        mfa_challenge_token: data.mfa_challenge_token,
+        user: data.user,
+      };
+    }
+
+    setTokens(data.access_token, data.refresh_token);
+    return { mfa_required: false, user: data.user };
+  },
+
+  async verifyMFAChallenge(challengeToken, code) {
+    const response = await api.post('/auth/mfa/challenge/verify', {
+      challenge_token: challengeToken,
+      code: code,
+    });
     const { access_token, refresh_token, user } = response.data;
     setTokens(access_token, refresh_token);
     return user;
@@ -116,7 +135,7 @@ export const authService = {
   },
 
   async verifyMFA(code) {
-    const response = await api.post('/auth/mfa/verify', { token: 'setup', code });
+    const response = await api.post('/auth/mfa/verify', { code });
     return response.data;
   },
 

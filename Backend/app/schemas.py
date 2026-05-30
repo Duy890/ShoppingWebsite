@@ -35,7 +35,6 @@ class MFAEnableRequest(BaseModel):
     password: str
 
 class MFAVerifyRequest(BaseModel):
-    token: str
     code: str
 
 class MFADisableRequest(BaseModel):

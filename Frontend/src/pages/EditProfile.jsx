@@ -4,7 +4,8 @@ import { useAuth } from '../hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { authService } from '../services/authService';
 import { toast } from 'react-hot-toast';
-import { User, Mail, KeyRound, Camera, ArrowLeft, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, KeyRound, Camera, ArrowLeft, CheckCircle, Loader2, Eye, EyeOff, ShieldCheck, ShieldOff, Smartphone, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import AvatarUploader from '../components/AvatarUploader';
 
 const Field = ({ label, icon: Icon, children }) => (
@@ -31,6 +32,16 @@ const SaveButton = ({ loading, children, disabled }) => (
   </button>
 );
 
+const parseApiError = (err) => {
+  if (!err?.response?.data) return err?.message || 'Đã xảy ra lỗi.';
+  const detail = err.response.data.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d) => d.msg || d.message).join('; ');
+  }
+  return err.response.data.message || 'Đã xảy ra lỗi.';
+};
+
 const EditProfile = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -53,11 +64,31 @@ const EditProfile = () => {
   const [pwLoading, setPwLoading] = useState(false);
   const [showPw, setShowPw] = useState({ current: false, next: false, confirm: false });
 
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaInitialized, setMfaInitialized] = useState(false);
+  const [mfaSetupState, setMfaSetupState] = useState('idle');
+  const [mfaSecret, setMfaSecret] = useState('');
+  const [mfaQrUrl, setMfaQrUrl] = useState('');
+  const [mfaConfirmCode, setMfaConfirmCode] = useState('');
+  const [mfaSetupPassword, setMfaSetupPassword] = useState('');
+  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaError, setMfaError] = useState('');
+  const [mfaDisablePassword, setMfaDisablePassword] = useState('');
+  const [mfaDisableCode, setMfaDisableCode] = useState('');
+  const [showDisableModal, setShowDisableModal] = useState(false);
+
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || '');
     }
   }, [profile]);
+
+  useEffect(() => {
+    authService.getMFAStatus().then(({ mfa_enabled }) => {
+      setMfaEnabled(mfa_enabled);
+      setMfaInitialized(true);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (searchParams.get('email_changed') === '1') {
@@ -85,7 +116,7 @@ const EditProfile = () => {
       setAvatarPreview('');
       toast.success(t('edit_profile.avatar_success'));
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t('edit_profile.avatar_error'));
+      toast.error(parseApiError(err));
     } finally {
       setAvatarLoading(false);
     }
@@ -99,7 +130,7 @@ const EditProfile = () => {
       await updateProfile({ full_name: fullName.trim(), avatar_url: profile?.avatar_url });
       toast.success(t('edit_profile.name_success'));
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t('edit_profile.name_error'));
+      toast.error(parseApiError(err));
     } finally {
       setNameLoading(false);
     }
@@ -117,7 +148,7 @@ const EditProfile = () => {
       setEmailSent(true);
       toast.success(t('edit_profile.email_success'));
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t('edit_profile.email_error'));
+      toast.error(parseApiError(err));
     } finally {
       setEmailLoading(false);
     }
@@ -133,13 +164,82 @@ const EditProfile = () => {
       toast.success(t('edit_profile.password_success'));
       setPwForm({ current: '', next: '', confirm: '' });
     } catch (err) {
-      toast.error(err?.response?.data?.detail || t('edit_profile.password_error'));
+      toast.error(parseApiError(err));
     } finally {
       setPwLoading(false);
     }
   };
 
   const togglePw = (field) => setShowPw((v) => ({ ...v, [field]: !v[field] }));
+
+  const handleSetupMFA = async () => {
+    if (!mfaSetupPassword) return;
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      const { secret, qr_code_url } = await authService.setupMFA(mfaSetupPassword);
+      setMfaSecret(secret);
+      setMfaQrUrl(qr_code_url);
+      setMfaSetupPassword('');
+      setMfaSetupState('show_qr');
+    } catch (err) {
+      setMfaError(parseApiError(err));
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleActivateMFA = async () => {
+    if (mfaConfirmCode.length !== 6) return;
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      await authService.verifyMFA(mfaConfirmCode);
+      setMfaEnabled(true);
+      setMfaSetupState('idle');
+      setMfaSecret('');
+      setMfaQrUrl('');
+      setMfaConfirmCode('');
+      setMfaSetupPassword('');
+    } catch (err) {
+      setMfaError(parseApiError(err));
+      setMfaConfirmCode('');
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleDisableMFA = async () => {
+    if (!mfaDisablePassword || mfaDisableCode.length !== 6) return;
+    setMfaLoading(true);
+    setMfaError('');
+    try {
+      await authService.disableMFA(mfaDisablePassword, mfaDisableCode);
+      setMfaEnabled(false);
+      setShowDisableModal(false);
+      setMfaDisablePassword('');
+      setMfaDisableCode('');
+    } catch (err) {
+      setMfaError(parseApiError(err));
+    } finally {
+      setMfaLoading(false);
+    }
+  };
+
+  const handleStartSetup = () => {
+    setMfaSetupState('password_prompt');
+    setMfaSetupPassword('');
+    setMfaError('');
+  };
+
+  const handleCancelSetup = () => {
+    setMfaSetupState('idle');
+    setMfaSetupPassword('');
+    setMfaSecret('');
+    setMfaQrUrl('');
+    setMfaConfirmCode('');
+    setMfaError('');
+  };
 
   const PasswordInput = ({ field, label, value, onChange }) => (
     <Field label={label} icon={KeyRound}>
@@ -313,6 +413,229 @@ const EditProfile = () => {
                 {pwLoading ? t('edit_profile.saving') : t('edit_profile.change_password_btn')}
               </SaveButton>
             </form>
+          </div>
+
+          {/* MFA Section */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="flex items-center gap-2 mb-5">
+              <ShieldCheck className="w-5 h-5 text-orange-500" />
+              <h2 className="text-lg font-bold text-gray-900">
+                Bảo mật &mdash; Xác thực hai lớp (MFA)
+              </h2>
+            </div>
+
+            {!mfaInitialized ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+              </div>
+            ) : mfaEnabled ? (
+              /* State C: MFA already enabled */
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Đã bật
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Tài khoản đang được bảo vệ bởi xác thực hai lớp.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setShowDisableModal(true); setMfaError(''); }}
+                  className="flex items-center gap-2 rounded-full border border-rose-300 px-5 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors"
+                >
+                  <ShieldOff className="w-4 h-4" />
+                  Tắt xác thực hai lớp
+                </button>
+
+                {showDisableModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-gray-900">Tắt xác thực hai lớp</h3>
+                        <button onClick={() => { setShowDisableModal(false); setMfaError(''); }} className="text-gray-400 hover:text-gray-600">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu hiện tại</label>
+                          <input
+                            type="password"
+                            value={mfaDisablePassword}
+                            onChange={(e) => setMfaDisablePassword(e.target.value)}
+                            className={inputCls}
+                            placeholder="Nhập mật khẩu"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-1">Mã xác thực 6 chữ số</label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={mfaDisableCode}
+                            onChange={(e) => setMfaDisableCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            className={inputCls + ' tracking-[0.3em] text-center'}
+                            placeholder="000000"
+                          />
+                        </div>
+                        {mfaError && (
+                          <div className="rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-600">
+                            {mfaError}
+                          </div>
+                        )}
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => { setShowDisableModal(false); setMfaError(''); }}
+                            className="flex-1 rounded-md border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDisableMFA}
+                            disabled={mfaLoading || !mfaDisablePassword || mfaDisableCode.length !== 6}
+                            className="flex-1 rounded-md bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            {mfaLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {mfaLoading ? 'Đang tắt...' : 'Xác nhận tắt'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : mfaSetupState === 'password_prompt' ? (
+              /* State A step 1: ask for password before setup */
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Vui lòng nhập mật khẩu hiện tại để bắt đầu thiết lập xác thực hai lớp.
+                </p>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Mật khẩu hiện tại</label>
+                  <input
+                    type="password"
+                    value={mfaSetupPassword}
+                    onChange={(e) => setMfaSetupPassword(e.target.value)}
+                    className={inputCls}
+                    placeholder="Nhập mật khẩu"
+                  />
+                </div>
+                {mfaError && (
+                  <div className="rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-600">
+                    {mfaError}
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCancelSetup}
+                    className="flex-1 rounded-md border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSetupMFA}
+                    disabled={mfaLoading || !mfaSetupPassword}
+                    className="flex-1 rounded-md bg-primary py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {mfaLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {mfaLoading ? 'Đang xử lý...' : 'Tiếp tục'}
+                  </button>
+                </div>
+              </div>
+            ) : mfaSetupState === 'show_qr' ? (
+              /* State B: show QR code + confirm code */
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-gray-700">Bước 1: Quét mã QR</p>
+                  <p className="text-xs text-gray-500">
+                    Sử dụng Google Authenticator, Authy hoặc ứng dụng tương tự để quét mã QR bên dưới.
+                  </p>
+                  <div className="flex justify-center">
+                    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                      {mfaQrUrl && <QRCodeSVG value={mfaQrUrl} size={200} />}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-gray-700">Hoặc nhập mã thủ công:</p>
+                  <div className="rounded-md bg-gray-50 border border-gray-200 px-4 py-3">
+                    <code className="text-sm font-mono text-gray-800 break-all select-all">
+                      {mfaSecret}
+                    </code>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-gray-700">Bước 2: Xác nhận thiết lập</p>
+                  <p className="text-xs text-gray-500">
+                    Nhập mã 6 chữ số từ ứng dụng Authenticator để kích hoạt.
+                  </p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={mfaConfirmCode}
+                    onChange={(e) => setMfaConfirmCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className={inputCls + ' tracking-[0.3em] text-center'}
+                    placeholder="000000"
+                  />
+                </div>
+
+                {mfaError && (
+                  <div className="rounded-md bg-rose-50 border border-rose-200 px-3 py-2 text-sm text-rose-600">
+                    {mfaError}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCancelSetup}
+                    className="flex-1 rounded-md border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleActivateMFA}
+                    disabled={mfaLoading || mfaConfirmCode.length !== 6}
+                    className="flex-1 rounded-md bg-primary py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {mfaLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {mfaLoading ? 'Đang kích hoạt...' : 'Kích hoạt MFA'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* State A: MFA not enabled */
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                    <ShieldOff className="w-3.5 h-3.5" />
+                    Chưa bật
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Bảo vệ tài khoản bằng mã xác thực từ ứng dụng Google Authenticator hoặc tương tự.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleStartSetup}
+                  className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 transition-colors shadow-sm"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  Bật xác thực hai lớp
+                </button>
+              </div>
+            )}
           </div>
 
         </div>

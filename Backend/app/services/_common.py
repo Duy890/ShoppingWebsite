@@ -31,7 +31,7 @@ VALID_STATUS_TRANSITIONS: dict[str, list[str]] = {
     "return_requested": ["returned"],
     "returned": ["refunded"],
     "cancelled": [],
-    "payment_failed": [],
+    "payment_failed": ["cancelled"],
     "refunded": [],
 }
 

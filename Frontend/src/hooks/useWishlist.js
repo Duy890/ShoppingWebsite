@@ -27,8 +27,10 @@ export const useWishlist = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       wishlistGlobalLoaded = false;
+      dispatch(setWishlistIds([]));
+      dispatch(setInitialized(false));
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, dispatch]);
 
   return {
     wishlistIds: ids,

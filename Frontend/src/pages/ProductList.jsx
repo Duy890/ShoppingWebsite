@@ -1,4 +1,4 @@
-import { useEffect, useMemo, memo, useCallback, useState, useRef } from 'react';
+import { useEffect, useMemo, memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -38,16 +38,8 @@ const ProductList = () => {
   const limitParam = parseInt(searchParams.get('limit'), 10) || 12;
 
   const [jumpPage, setJumpPage] = useState('');
-  const prevUrlKeyRef = useRef('');
-
-  const urlKey = `${categoryParam}|${typeParam}|${brandParam}|${searchParam}`;
 
   useEffect(() => {
-    if (urlKey === prevUrlKeyRef.current) return;
-    prevUrlKeyRef.current = urlKey;
-
-    console.log('[ProductList] URL filters changed:', { brandParam, categoryParam });
-
     dispatch(setFilters({
       category: categoryParam,
       type: typeParam,
@@ -67,10 +59,10 @@ const ProductList = () => {
       brand: brandParam,
       search: searchParam,
       sortBy: sortBy,
-      page: pageParam,
+      page: 1,
       limit: limitParam,
     });
-  }, [dispatch, categoryParam, typeParam, brandParam, searchParam]);
+  }, [categoryParam, typeParam, brandParam, searchParam, limitParam]);
 
   useEffect(() => {
     const loadBrandOptions = async () => {
@@ -95,17 +87,21 @@ const ProductList = () => {
 
   const handleReset = useCallback(() => {
     setSearchParams({});
-    prevUrlKeyRef.current = '';
   }, [setSearchParams]);
 
   const handleSortChange = useCallback((e) => {
-    dispatch(setFilters({ sortBy: e.target.value }));
-    setSearchParams((prev) => {
-      prev.delete('page');
-      return prev;
+    const newSort = e.target.value;
+    dispatch(setFilters({ sortBy: newSort }));
+    loadProducts({
+      category: categoryParam,
+      type: typeParam,
+      brand: brandParam,
+      search: searchParam,
+      sortBy: newSort,
+      page: 1,
+      limit: limitParam,
     });
-    prevUrlKeyRef.current = '';
-  }, [dispatch, setSearchParams]);
+  }, [dispatch, loadProducts, categoryParam, typeParam, brandParam, searchParam, limitParam]);
 
   const handlePageChange = useCallback((newPage) => {
     const totalPages = pagination.total_pages || 1;

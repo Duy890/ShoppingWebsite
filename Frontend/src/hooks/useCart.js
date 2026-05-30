@@ -43,8 +43,9 @@ export const useCart = () => {
   useEffect(() => {
     if (!isAuthenticated) {
       cartGlobalLoaded = false;
+      dispatch(clearCartAction());
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, dispatch]);
 
   const addToCart = async (productId, quantity = 1, variantId = null) => {
     if (!userId) {

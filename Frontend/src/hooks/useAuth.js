@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser, setProfile, setLoading, logout as logoutAction } from '../store/authSlice';
+import { clearCart } from '../store/cartSlice';
+import { setWishlistIds, setInitialized } from '../store/wishlistSlice';
 import { authService } from '../services/authService';
 
 let globalAuthInitialized = false;
@@ -36,7 +38,20 @@ export const useAuth = () => {
   }, [dispatch]);
 
   const signIn = useCallback(async (email, password) => {
-    const user = await authService.signIn(email, password);
+    const result = await authService.signIn(email, password);
+
+    if (result.mfa_required) {
+      return result;
+    }
+
+    dispatch(setUser(result.user));
+    dispatch(setProfile(result.user));
+    globalAuthInitialized = true;
+    return result;
+  }, [dispatch]);
+
+  const verifyMFAChallenge = useCallback(async (challengeToken, code) => {
+    const user = await authService.verifyMFAChallenge(challengeToken, code);
     dispatch(setUser(user));
     dispatch(setProfile(user));
     globalAuthInitialized = true;
@@ -55,12 +70,18 @@ export const useAuth = () => {
     await authService.signOut();
     globalAuthInitialized = false;
     dispatch(logoutAction());
+    dispatch(clearCart());
+    dispatch(setWishlistIds([]));
+    dispatch(setInitialized(false));
   }, [dispatch]);
 
   const logoutAllSessions = useCallback(async () => {
     await authService.logoutAllSessions();
     globalAuthInitialized = false;
     dispatch(logoutAction());
+    dispatch(clearCart());
+    dispatch(setWishlistIds([]));
+    dispatch(setInitialized(false));
   }, [dispatch]);
 
   const updateProfile = useCallback(async (updates) => {
@@ -80,5 +101,6 @@ export const useAuth = () => {
     logout,
     logoutAllSessions,
     updateProfile,
+    verifyMFAChallenge,
   };
 };
