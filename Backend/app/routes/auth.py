@@ -179,9 +179,13 @@ def mfa_setup(payload: schemas.MFAEnableRequest, current_user: models.User = Dep
     if not verify_password(payload.password, current_user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid password")
 
-    secret = generate_totp_secret()
-    current_user.mfa_secret = secret
-    db.commit()
+    if not current_user.mfa_secret:
+        secret = generate_totp_secret()
+        current_user.mfa_secret = secret
+        db.commit()
+        db.refresh(current_user)
+    else:
+        secret = current_user.mfa_secret
 
     issuer = get_settings().SITE_NAME or "Electronics Store"
     qr_url = f"otpauth://totp/{issuer}:{current_user.email}?secret={secret}&issuer={issuer}"
@@ -195,14 +199,15 @@ def mfa_verify(payload: schemas.MFAVerifyRequest, current_user: models.User = De
     except ImportError:
         raise HTTPException(status_code=501, detail="MFA not available (pyotp not installed)")
     if not current_user.mfa_secret:
-        raise HTTPException(status_code=400, detail="MFA not set up")
+        raise HTTPException(status_code=400, detail="MFA not set up. Please call /auth/mfa/setup first.")
 
     totp = pyotp.TOTP(current_user.mfa_secret)
-    if not totp.verify(payload.code):
+    if not totp.verify(payload.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid verification code")
 
     current_user.mfa_enabled = True
     db.commit()
+    db.refresh(current_user)
     return {"ok": True, "message": "MFA enabled successfully"}
 
 
@@ -218,12 +223,13 @@ def mfa_disable(payload: schemas.MFADisableRequest, current_user: models.User = 
     except ImportError:
         raise HTTPException(status_code=501, detail="MFA not available (pyotp not installed)")
     totp = pyotp.TOTP(current_user.mfa_secret)
-    if not totp.verify(payload.code):
+    if not totp.verify(payload.code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid verification code")
 
     current_user.mfa_secret = None
     current_user.mfa_enabled = False
     db.commit()
+    db.refresh(current_user)
     return {"ok": True, "message": "MFA disabled successfully"}
 
 

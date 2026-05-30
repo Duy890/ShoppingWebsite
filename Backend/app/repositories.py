@@ -821,7 +821,7 @@ def create_order_item(db: Session, order_id: str, product_id: str, quantity: int
 def get_orders_by_user(db: Session, user_id: str) -> list[models.Order]:
     return (
         db.query(models.Order)
-        .options(joinedload(models.Order.items).joinedload(models.OrderItem.product))
+        .options(joinedload(models.Order.items).joinedload(models.OrderItem.product), joinedload(models.Order.user))
         .filter(models.Order.user_id == user_id)
         .order_by(models.Order.created_at.desc())
         .all()
@@ -831,7 +831,7 @@ def get_orders_by_user(db: Session, user_id: str) -> list[models.Order]:
 def get_order_by_id(db: Session, order_id: str) -> models.Order | None:
     return (
         db.query(models.Order)
-        .options(joinedload(models.Order.items).joinedload(models.OrderItem.product))
+        .options(joinedload(models.Order.items).joinedload(models.OrderItem.product), joinedload(models.Order.user))
         .filter(models.Order.id == order_id)
         .first()
     )

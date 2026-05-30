@@ -1,441 +1,419 @@
-# 🛒 Electronics E-Commerce Platform
-
-A modern, full-stack electronics e-commerce platform built with React, FastAPI, and MySQL, featuring advanced product management, search capabilities, and a comprehensive admin dashboard.
-
-## 📋 Table of Contents
-
-- [Project Overview](#-project-overview)
-- [Features](#-features)
-- [Database Structure](#-database-structure)
-- [Project Structure](#-project-structure)
-- [Installation](#-installation)
-- [Environment Variables](#-environment-variables)
-- [API Overview](#-api-overview)
-- [Product System](#-product-system)
-- [UI/UX System](#-uiux-system)
-- [Error Pages](#-error-pages)
-- [Future Improvements](#-future-improvements)
-- [Authors](#-authors)
-- [License](#-license)
-
-## 🎯 Project Overview
-
-This is a comprehensive electronics e-commerce platform designed to compete with major electronics retailers. The platform specializes in high-quality electronics products including smartphones, laptops, PC components, audio devices, smart devices, and accessories.
-
-### Key Capabilities
-
-- **Admin Dashboard**: Complete product and inventory management system
-- **Product Management**: CRUD operations with variants and specifications
-- **Interactive Product UI**: Detailed product pages with specifications tables and image hotspots
-- **Address Management**: Multi-address support for users
-- **Advanced Search**: Autocomplete search with category filtering
-- **Responsive Design**: Modern electronics-store UI optimized for all devices
-
-### Technology Stack
-
-- **Frontend**: React 18 + Vite + TypeScript + Redux Toolkit + Tailwind CSS
-- **Backend**: FastAPI + SQLAlchemy ORM + JWT Authentication
-- **Database**: MySQL (primary) / PostgreSQL (compatible)
-- **Styling**: Responsive design with modern electronics-store aesthetics
-
-## ✨ Features
-
-### Frontend Features
-
-- **Responsive Electronics-Store UI**: Modern, clean design optimized for electronics shopping
-- **Mega Menu Category Dropdown**: Hierarchical category navigation
-- **Search Autocomplete Dropdown**: Real-time product search suggestions
-- **Product Detail Page**: Comprehensive product information with specifications
-- **Product Specifications Table**: Organized technical specifications display
-- **Product Variants Selector**: Dynamic variant selection (color, storage, etc.)
-- **Related Products**: Intelligent product recommendations
-- **Interactive Image Hotspots**: Clickable product image features
-- **Breadcrumb Navigation**: Clear navigation hierarchy
-- **Dark/Light Mode**: User preference-based theme switching
-- **Multi-Language Support**: English and Vietnamese localization
-- **Profile Page**: User account management with avatar upload
-- **Address Management**: Multiple delivery addresses
-- **Cart System**: Persistent shopping cart with quantity management
-- **Checkout Flow**: Secure order placement process
-- **Order History**: Complete order tracking and history
-- **Error Pages**: Dedicated 404, 500, maintenance, and access denied pages
-
-### Backend Features
-
-- **JWT Authentication**: Secure token-based user authentication
-- **Role-Based Admin System**: Granular access control for administrators
-- **CRUD Product Management**: Complete product lifecycle management
-- **Category Hierarchy**: Nested category structure for organization
-- **Variant Management**: Product variant handling (size, color, etc.)
-- **Product Specifications Management**: Dynamic specification templates
-- **Address Management**: User address CRUD operations
-- **Order System**: Complete order processing and management
-- **Review System**: User product reviews and ratings
-- **Upload Image API**: Secure image upload functionality
-- **Dynamic Schema Synchronization**: Automatic database schema updates
-
-### Admin Features
-
-- **Add/Edit/Delete Products**: Full product management interface
-- **Manage Variants**: Product variant configuration
-- **Manage Specifications**: Dynamic specification editing
-- **Add Dynamic Specification Rows**: Flexible specification templates
-- **Manage Categories**: Category hierarchy management
-- **Manage Related Products**: Product relationship configuration
-- **Manage Hotspot Features**: Interactive image hotspot setup
-- **Manage Inventory**: Stock level monitoring and updates
-
-## 🗄️ Database Structure
-
-The platform uses a relational database with the following core tables:
-
-### Core Tables
-
-- **`users`**: User accounts with authentication and profile information
-  - UUID primary keys
-  - Email/password authentication
-  - Role-based access (user/admin)
-  - Avatar URL support
-  - Relationships: carts, orders, reviews, addresses
-
-- **`addresses`**: User delivery addresses
-  - Multiple addresses per user
-  - Default address flag
-  - Complete address fields (street, city, country)
-  - Foreign key to users with cascade delete
-
-- **`categories`**: Product category hierarchy
-  - Unique category names
-  - Description field
-  - One-to-many relationship with products
-
-- **`products`**: Main product catalog
-  - Comprehensive product information
-  - Brand, SKU, product type classification
-  - Rating and review aggregation
-  - Stock management
-  - Featured product flag
-  - Relationships: category, specifications, cart_items, order_items, reviews
-
-- **`product_specifications`**: Technical specifications
-  - Grouped specifications (Display, Performance, etc.)
-  - Key-value specification pairs
-  - Display order for organization
-  - Foreign key to products with cascade delete
-
-- **`spec_templates`**: Specification templates for product types
-  - Predefined specs for phones, laptops, audio devices
-  - Product type classification
-  - Default ordering
-
-- **`reviews`**: User product reviews
-  - Rating (1-5 stars) and comments
-  - Foreign keys to users and products
-
-- **`carts`**: Shopping cart sessions
-  - User-specific carts
-  - One-to-many relationship with cart items
-  - Foreign key to users with cascade delete
-
-- **`cart_items`**: Individual cart line items
-  - Product quantity tracking
-  - Foreign keys to carts and products
-
-- **`orders`**: Customer orders
-  - Order status tracking
-  - Total amount calculation
-  - Shipping address integration
-  - Payment method recording
-  - Relationships: user, address, order_items
-
-- **`order_items`**: Order line items
-  - Historical product pricing
-  - Quantity and price at time of order
-  - Foreign keys to orders and products
-
-### Key Relationships
-
-- **Foreign Keys**: All relationships use UUID foreign keys
-- **Cascade Deletes**: Maintains referential integrity
-- **Indexing**: Email, product_id, and other frequently queried fields are indexed
-- **UUID Primary Keys**: Ensures global uniqueness and security
-
-## 📁 Project Structure
-
-```
-├── Frontend/
-│   ├── src/
-│   │   ├── components/          # Reusable UI components
-│   │   │   ├── Navbar.jsx       # Main navigation with mega menu
-│   │   │   ├── SearchBar.jsx    # Search with autocomplete
-│   │   │   ├── ProductCard.jsx  # Product display cards
-│   │   │   ├── CategoryMegaMenu.jsx # Category navigation
-│   │   │   └── ...
-│   │   ├── pages/               # Route components
-│   │   │   ├── Home.jsx         # Landing page
-│   │   │   ├── ProductDetail.jsx # Product detail view
-│   │   │   ├── SearchResults.jsx # Search results page
-│   │   │   ├── admin/           # Admin dashboard pages
-│   │   │   └── ...
-│   │   ├── services/            # API service layer
-│   │   │   ├── api.js           # Axios configuration
-│   │   │   ├── productService.js # Product API calls
-│   │   │   └── ...
-│   │   ├── store/               # Redux state management
-│   │   │   ├── store.js         # Redux store configuration
-│   │   │   ├── authSlice.js     # Authentication state
-│   │   │   └── ...
-│   │   ├── routes/              # Routing configuration
-│   │   │   └── AppRoutes.jsx    # Route definitions
-│   │   ├── layouts/             # Layout components
-│   │   │   ├── MainLayout.jsx   # Main app layout
-│   │   │   └── AdminLayout.jsx  # Admin dashboard layout
-│   │   ├── hooks/               # Custom React hooks
-│   │   └── utils/               # Utility functions
-│   ├── index.html               # HTML entry point
-│   ├── vite.config.ts           # Vite configuration
-│   └── package.json             # Frontend dependencies
-│
-├── Backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI application
-│   │   ├── models.py            # SQLAlchemy models
-│   │   ├── schemas.py           # Pydantic schemas
-│   │   ├── controllers.py       # API route handlers
-│   │   ├── services.py          # Business logic layer
-│   │   ├── repositories.py      # Data access layer
-│   │   ├── core/                # Core functionality
-│   │   │   ├── database.py      # Database configuration
-│   │   │   ├── config.py        # App configuration
-│   │   │   └── security.py      # JWT and security utilities
-│   │   ├── routes/              # Additional route modules
-│   │   ├── static/              # Static file serving
-│   │   │   └── images/          # Uploaded product images
-│   │   └── middleware/          # Custom middleware
-│   ├── migrations/              # Database migrations
-│   ├── requirements.txt         # Python dependencies
-│   └── README.md                # Backend-specific documentation
-│
-├── package.json                 # Root package.json for scripts
-└── tsconfig.json               # TypeScript configuration
-```
-
-## 🚀 Installation
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- Python 3.8+
-- MySQL 8.0+ or PostgreSQL 13+
-
-### Frontend Setup
-
-1. **Install Dependencies**
-   ```bash
-   cd Frontend
-   npm install
-   ```
-
-2. **Environment Configuration**
-   ```bash
-   # Create .env file in Frontend/
-   VITE_API_URL=http://localhost:8000
-   ```
-
-3. **Start Development Server**
-   ```bash
-   npm run dev
-   ```
-   The frontend will be available at `http://localhost:5173`
-
-### Backend Setup
-
-1. **Create Virtual Environment**
-   ```bash
-   cd Backend
-   python -m venv .venv
-   # On Windows:
-   .\.venv\Scripts\Activate.ps1
-   # On macOS/Linux:
-   source .venv/bin/activate
-   ```
-
-2. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Database Setup**
-   - Create a MySQL database named `shoppingweb`
-   - Update the `.env` file with your database credentials
-
-4. **Environment Configuration**
-   ```bash
-   # Create .env file in Backend/
-   DATABASE_URL=mysql+pymysql://username:password@localhost:3306/shoppingweb
-   SECRET_KEY=your-secret-key-here
-   ACCESS_TOKEN_EXPIRE_MINUTES=30
-   ```
-
-5. **Start API Server**
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-   The API will be available at `http://localhost:8000`
-
-### Database Seeding (Optional)
-
-For development, you can seed the database with sample electronics products:
-
-```bash
-cd Backend
-python -m app.seed_data
-```
-
-## 🔧 Environment Variables
-
-### Backend (.env)
-
-```bash
-# Database Configuration
-DATABASE_URL=mysql+pymysql://username:password@localhost:3306/shoppingweb
-
-# Security
-SECRET_KEY=your-super-secret-key-change-this-in-production
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Optional: CORS Origins (comma-separated)
-# ALLOWED_ORIGINS=http://localhost:5173,https://yourdomain.com
-```
-
-### Frontend (.env)
-
-```bash
-# API Configuration
-VITE_API_URL=http://localhost:8000
-
-# Optional: Additional configuration
-# VITE_APP_NAME=Electronics Store
-```
-
-## 📡 API Overview
-
-The REST API provides comprehensive endpoints for the e-commerce platform:
-
-- **`/auth`**: User authentication (register, login, profile)
-- **`/products`**: Product catalog and management
-- **`/categories`**: Category hierarchy and navigation
-- **`/orders`**: Order processing and history
-- **`/cart`**: Shopping cart operations
-- **`/reviews`**: Product reviews and ratings
-- **`/upload-image`**: Image upload for products
-- **`/addresses`**: User address management
-- **`/admin`**: Administrative operations and analytics
-
-### Authentication
-
-All protected endpoints require JWT tokens in the Authorization header:
-```
-Authorization: Bearer <jwt_token>
-```
-
-## 🛍️ Product System
-
-### Electronics-Oriented Features
-
-- **Product Hierarchy**: Organized by categories (Smartphones, Laptops, Audio, etc.)
-- **Brand Management**: Major electronics brands (Apple, Samsung, Sony, etc.)
-- **SKU System**: Unique product identification
-- **Variant Support**: Color, storage, and configuration variants
-- **Dynamic Specifications**: Electronics-specific spec templates
-- **Related Products**: Cross-selling recommendations
-- **Interactive Hotspots**: Clickable product features on images
-
-### Specification Templates
-
-Pre-configured templates for different product types:
-
-- **Smartphones**: Display, Camera, Performance, Battery specs
-- **Laptops**: Display, CPU, GPU, RAM, Storage specs
-- **Audio Devices**: Driver, Noise Cancellation, Bluetooth specs
-
-### Product Management
-
-- **CRUD Operations**: Full product lifecycle management
-- **Bulk Operations**: Category and inventory management
-- **Image Upload**: Multiple product images with hotspot support
-- **SEO Optimization**: Meta descriptions and structured data
-
-## 🎨 UI/UX System
-
-### Design Philosophy
-
-- **Electronics-Store Aesthetics**: Clean, modern design inspired by major retailers
-- **Responsive Layout**: Optimized for desktop, tablet, and mobile
-- **Performance Focused**: Fast loading with lazy image loading
-- **Accessibility**: WCAG compliant with keyboard navigation
-
-### Navigation System
-
-- **Mega Menu**: Hierarchical category dropdown navigation
-- **Search Dropdown**: Real-time autocomplete suggestions
-- **Breadcrumb Navigation**: Clear page hierarchy indication
-- **Profile Dropdown**: Quick access to account features
-
-### Theme System
-
-- **Dark/Light Mode**: User preference persistence
-- **Consistent Branding**: Electronics-focused color scheme
-- **Typography**: Clean, readable font hierarchy
-
-### Error Handling
-
-- **Graceful Degradation**: Offline functionality with banners
-- **User-Friendly Messages**: Clear error communication
-- **Recovery Options**: Easy retry mechanisms
-
-## 🚨 Error Pages
-
-The platform includes dedicated error pages for better user experience:
-
-- **404 Page**: Custom "Page Not Found" with navigation options
-- **500 Page**: Server error page with support contact information
-- **Maintenance Page**: Scheduled maintenance notifications
-- **403 Page**: Access denied page for unauthorized content
-
-## 🔮 Future Improvements
-
-### Planned Features
-
-- **AI Recommendations**: Machine learning-powered product suggestions
-- **Payment Gateway Integration**: Stripe/PayPal payment processing
-- **Real-time Notifications**: WebSocket-based order updates
-- **Wishlist Sync**: Cross-device wishlist management
-- **Elasticsearch**: Advanced search with filters and facets
-- **Product Comparison**: Side-by-side product comparison tool
-- **Analytics Dashboard**: Advanced admin analytics and reporting
-
-### Technical Enhancements
-
-- **Microservices Architecture**: Service decomposition for scalability
-- **Redis Caching**: Performance optimization for frequently accessed data
-- **CDN Integration**: Global content delivery for images and assets
-- **API Rate Limiting**: Protection against abuse and DoS attacks
-- **Automated Testing**: Comprehensive test coverage with CI/CD
-- **Container Orchestration**: Kubernetes deployment support
-
-## 👥 Authors
-
-**Development Team**
-- Lead Developer: [Your Name]
-- Frontend Team: React/TypeScript specialists
-- Backend Team: Python/FastAPI developers
-- UI/UX Team: Design and user experience experts
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+# 🛒 e-shop. — Hệ thống Thương mại Điện tử Bán Đồ Điện tử
+
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.116.0-009688?logo=fastapi)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react)](https://react.dev)
+[![MySQL](https://img.shields.io/badge/MySQL-8.x-4479A1?logo=mysql)](https://mysql.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Hệ thống thương mại điện tử full-stack bán đồ điện tử (laptop, gaming gear, phụ kiện), được xây dựng với **FastAPI** (backend) và **React + Vite + Redux Toolkit** (frontend), sử dụng **MySQL** làm cơ sở dữ liệu.
+
+<!-- screenshot -->
+<p align="center">
+  <em>🚧 Screenshot sẽ được bổ sung sau</em>
+</p>
 
 ---
 
-Built with ❤️ for the modern electronics shopping experience
+## ✨ Tính năng nổi bật
+
+- 🔐 **Authentication & Bảo mật**: Đăng ký, đăng nhập, JWT access/refresh token, MFA (TOTP), forgot/reset password, đổi email, rate limiting, account lockout
+- 📱 **MFA (Xác thực hai lớp)**: TOTP qua Google Authenticator / Authy — setup trong profile, verify khi login
+- 🛍️ **Sản phẩm**: CRUD, variants (màu sắc / RAM / ổ cứng), specifications, multiple images, AI sinh mô tả sản phẩm
+- 🛒 **Giỏ hàng & Thanh toán**: Cart, Checkout, MoMo e-wallet (IPN callback), COD
+- 📦 **Quản lý đơn hàng**: State machine (pending → confirmed → shipped → delivered), tracking timeline, huỷ đơn
+- ❤️ **Wishlist & So sánh sản phẩm**
+- 🤖 **Chatbot AI**: Rule-based + LLM fallback (OpenRouter / Gemini)
+- 🎯 **Recommendation Engine**: Cá nhân hoá, phổ biến, tương tự (cosine similarity), co-purchase
+- 🛡️ **Admin Panel**: Dashboard thống kê, biểu đồ doanh thu, quản lý sản phẩm / đơn hàng / danh mục, audit logs, session management
+- 🌐 **Đa ngôn ngữ**: Tiếng Việt & Tiếng Anh (react-i18next)
+
+---
+
+## 🏗️ Kiến trúc & Tech Stack
+
+### Backend
+
+| Thành phần | Công nghệ | Version |
+|---|---|---|
+| Runtime | Python | 3.12 |
+| Web framework | FastAPI | 0.116.0 |
+| ASGI server | Uvicorn | 0.24.0 |
+| ORM | SQLAlchemy (sync) | 2.0.22 |
+| DB driver | PyMySQL | 1.1.0 |
+| Database | MySQL | 8.x |
+| Validation | Pydantic | 2.8.0 |
+| Settings | pydantic-settings | 2.8.0 |
+| Auth | python-jose (JWT) + passlib[bcrypt] | 3.3.0 + 1.7.4 |
+| MFA (TOTP) | pyotp | 2.9.0 |
+| Rate limiter | slowapi | 0.1.9 |
+| Payment | MoMo test gateway | — |
+| AI/LLM client | openai (via OpenRouter) | 1.54.3 |
+| SMTP | aiosmtplib | 3.0.1 |
+| HTTP client | requests | 2.32.3 |
+
+### Frontend
+
+| Thành phần | Công nghệ | Version |
+|---|---|---|
+| Bundler | Vite | ^5.4.2 |
+| UI library | React | ^18.3.1 |
+| State management | Redux Toolkit | ^2.11.2 |
+| React-Redux | react-redux | ^9.2.0 |
+| Routing | react-router-dom | ^7.13.2 |
+| Form | react-hook-form | ^7.73.1 |
+| CSS | Tailwind CSS | ^3.4.1 |
+| HTTP | Axios | ^1.14.0 |
+| i18n | i18next + react-i18next | ^26.0.6 / ^17.0.4 |
+| Maps | @react-google-maps/api | ^2.20.8 |
+| Icons | lucide-react | ^0.344.0 |
+| QR Code | qrcode.react | ^4.2.0 |
+| Toast | react-hot-toast | ^2.6.0 |
+| Language | TypeScript | ^5.5.3 |
+
+---
+
+## 📋 Yêu cầu hệ thống
+
+- **Python** 3.12+
+- **Node.js** 18+ & npm
+- **MySQL** 8.x
+- **Git**
+
+---
+
+## 🚀 Hướng dẫn cài đặt nhanh (Quick Start)
+
+### Bước 1: Clone repository
+
+```bash
+git clone <repo-url>
+cd e-shop
+```
+
+### Bước 2: Cài đặt và chạy Backend
+
+```bash
+# 2a: Tạo virtual environment
+cd Backend
+python -m venv venv
+.\venv\Scripts\activate    # Windows
+source venv/bin/activate   # macOS/Linux
+
+# 2b: Cài dependencies
+pip install -r requirements.txt
+
+# 2c: Tạo file .env
+# Tạo file Backend/.env với nội dung bên dưới (xem cấu hình chi tiết ở phần ⚙️)
+
+# 2d: Chạy backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+> **Lưu ý:** Database `ShoppingWeb` sẽ được tự động tạo nếu chưa tồn tại (nhờ `ensure_mysql_database_exists` trong `database.py`). Schema cũng được tạo tự động bởi `Base.metadata.create_all()`.
+
+Backend sẽ chạy tại **http://localhost:8000**.  
+Swagger UI: **http://localhost:8000/docs**  
+Admin seed tự động: **admin@example.com / adminpass**
+
+### Bước 3: Cài đặt và chạy Frontend
+
+```bash
+# Mở terminal mới, cd về thư mục gốc
+cd Frontend
+
+# 3a: Cài dependencies
+npm install
+
+# 3b: Tạo file .env
+# Tạo file Frontend/.env:
+echo VITE_API_BASE_URL=http://localhost:8000 > .env
+echo VITE_GOOGLE_MAPS_API_KEY=your-key-here >> .env
+
+# 3c: Chạy dev server
+npm run dev
+```
+
+Frontend sẽ chạy tại **http://localhost:5173**.
+
+### Bước 4: Truy cập hệ thống
+
+| URL | Mô tả |
+|---|---|
+| http://localhost:5173 | Trang chủ |
+| http://localhost:5173/login | Đăng nhập |
+| http://localhost:8000/docs | Swagger UI (API docs) |
+| http://localhost:8000/redoc | ReDoc (API docs) |
+
+**Tài khoản admin mặc định:** `admin@example.com` / `adminpass`
+
+---
+
+## ⚙️ Cấu hình chi tiết
+
+### 6.1 Backend — `Backend/.env`
+
+```env
+# ─── BẮT BUỘC ───────────────────────────────────────
+DATABASE_URL=mysql+pymysql://root:YOUR_PASSWORD@localhost:3306/ShoppingWeb
+SECRET_KEY=your-very-long-random-secret-key-here
+
+# ─── JWT (có giá trị mặc định) ──────────────────────
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+REFRESH_TOKEN_EXPIRE_MINUTES=10080
+ALGORITHM=HS256
+MFA_CHALLENGE_EXPIRE_SECONDS=300
+
+# ─── AI / Chatbot (tuỳ chọn) ────────────────────────
+# Chatbot vẫn hoạt động rule-based nếu không có key này.
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODEL=google/gemini-2.0-flash-001
+OPENROUTER_MAX_TOKENS=1024
+
+# ─── Thanh toán MoMo (tuỳ chọn) ─────────────────────
+# Chỉ cần nếu test flow thanh toán MoMo.
+# Khi test local, dùng ngrok để expose port 8000 cho IPN.
+MOMO_PARTNER_CODE=
+MOMO_ACCESS_KEY=
+MOMO_SECRET_KEY=
+MOMO_ENDPOINT=https://test-payment.momo.vn/v2/gateway/api/create
+MOMO_REDIRECT_URL=http://localhost:5173/payment/result
+MOMO_IPN_URL=https://your-ngrok-url.ngrok.io/payment/momo/ipn
+
+# ─── Email SMTP (tuỳ chọn) ──────────────────────────
+# Cần nếu dùng forgot password / đổi email.
+# Dùng Gmail App Password (không phải password thường).
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-gmail-app-password
+SMTP_FROM_NAME=Electronics Store
+
+# ─── Frontend URL (dùng để tạo link trong email) ────
+FRONTEND_URL=http://localhost:5173
+
+# ─── CORS ────────────────────────────────────────────
+ALLOWED_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+
+# ─── Site info (dùng trong QR MFA và email) ─────────
+SITE_NAME=Your Electronics Store
+SITE_URL=http://localhost:5173
+```
+
+### 6.2 Frontend — `Frontend/.env`
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+```
+
+> `VITE_GOOGLE_MAPS_API_KEY` chỉ cần nếu dùng tính năng nhập địa chỉ qua Google Maps. Có thể để trống, tính năng nhập tay vẫn hoạt động.
+
+### 6.3 Hướng dẫn lấy Gmail App Password (cho SMTP)
+
+1. Vào https://myaccount.google.com/security
+2. Bật **2-Step Verification** (xác thực 2 bước)
+3. Vào Security → **App Passwords**
+4. Chọn **Mail** + **Windows Computer** → Generate
+5. Copy mật khẩu 16 ký tự → dán vào `SMTP_PASSWORD`
+
+### 6.4 Hướng dẫn cấu hình ngrok cho MoMo IPN (khi test local)
+
+```bash
+# Cài ngrok: https://ngrok.com/download
+ngrok http 8000
+# Copy URL https://xxx.ngrok.io → dán vào MOMO_IPN_URL trong .env
+# Restart backend
+```
+
+---
+
+## 🗄️ Database
+
+- **Engine:** MySQL 8.x
+- **Database name:** `ShoppingWeb`
+- **Charset:** `utf8mb4`
+- **Không cần chạy migration** — SQLAlchemy tự động tạo schema khi backend khởi động (`Base.metadata.create_all()`). Một số cột bổ sung được thêm qua `ensure_schema()`.
+- Database cũng được **tự động tạo** nếu chưa tồn tại (nhờ `ensure_mysql_database_exists`).
+
+Nếu cần tạo thủ công:
+
+```sql
+CREATE DATABASE IF NOT EXISTS ShoppingWeb
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+```
+
+### Seed data tự động
+
+Khi backend khởi động lần đầu, hệ thống tự động seed:
+- 👤 **Admin user:** `admin@example.com` / `adminpass`
+- 📂 **Danh mục sản phẩm:** Điện thoại, Laptop, Tablet, Phụ kiện, Gaming Gear, v.v.
+- 🏷️ **Thương hiệu:** Apple, Samsung, Dell, ASUS, Sony, v.v.
+- 🖥️ **GPU/CPU benchmark data** (cho recommendation engine)
+- 🎮 **Game requirements** (cho chatbot tư vấn cấu hình)
+
+---
+
+## 📁 Cấu trúc thư mục
+
+```
+├── Backend/                        # FastAPI backend
+│   ├── app/
+│   │   ├── core/                   # Config, database, security, rate limit
+│   │   │   ├── config.py           # pydantic-settings
+│   │   │   ├── database.py         # SQLAlchemy engine + ensure_mysql_database_exists
+│   │   │   ├── security.py         # JWT, password hashing, TOTP secret
+│   │   │   ├── admin_security.py   # Account lockout, audit logging
+│   │   │   ├── rate_limit.py       # slowapi limiter
+│   │   │   └── email.py            # SMTP email builder
+│   │   ├── routes/                 # 15+ API routers
+│   │   │   ├── auth.py             # Auth + MFA endpoints
+│   │   │   ├── products.py
+│   │   │   ├── orders.py
+│   │   │   ├── cart.py
+│   │   │   ├── admin.py            # Admin dashboard + management
+│   │   │   ├── payment.py          # MoMo integration
+│   │   │   ├── chatbot.py
+│   │   │   └── ...
+│   │   ├── services/               # Business logic layer
+│   │   ├── repositories.py         # Data access layer
+│   │   ├── models.py               # SQLAlchemy ORM models
+│   │   ├── schemas.py              # Pydantic request/response schemas
+│   │   ├── main.py                 # App entry point, startup seed
+│   │   └── chatbot/                # AI chatbot engines
+│   ├── requirements.txt
+│   └── .env                        # Backend cấu hình
+│
+├── Frontend/                       # React + Vite frontend
+│   ├── src/
+│   │   ├── pages/                  # 30+ React pages
+│   │   │   ├── Login.jsx
+│   │   │   ├── Profile.jsx
+│   │   │   ├── EditProfile.jsx     # Avatar, password, email, MFA settings
+│   │   │   ├── OrderTracking.jsx
+│   │   │   ├── Cart.jsx
+│   │   │   ├── Checkout.jsx
+│   │   │   ├── Wishlist.jsx
+│   │   │   └── admin/              # Admin pages
+│   │   ├── components/             # Reusable UI components
+│   │   │   ├── auth/               # AuthLayout, AuthCard, AuthInput, AuthButton...
+│   │   │   ├── Navbar.jsx
+│   │   │   └── ...
+│   │   ├── services/               # API service layer (Axios)
+│   │   ├── store/                  # Redux slices (auth, cart, wishlist)
+│   │   ├── hooks/                  # Custom hooks (useAuth, useCart, useWishlist)
+│   │   ├── locales/                # i18n translations (en, vi)
+│   │   └── main.jsx
+│   ├── index.html
+│   ├── vite.config.ts
+│   └── .env                        # Frontend cấu hình
+│
+├── package.json                    # Root package (scripts: dev, build)
+└── README.md
+```
+
+---
+
+## 🔐 Tài khoản mặc định
+
+| Role | Email | Password | Ghi chú |
+|---|---|---|---|
+| Admin | `admin@example.com` | `adminpass` | Tự động tạo khi backend startup lần đầu |
+| User | (đăng ký qua `/register`) | — | — |
+
+> ⚠️ **Lưu ý bảo mật:** Đổi password admin ngay sau lần đầu đăng nhập trên môi trường production.
+
+---
+
+## 📡 API Documentation
+
+| Loại | URL |
+|---|---|
+| Swagger UI | http://localhost:8000/docs |
+| ReDoc | http://localhost:8000/redoc |
+
+### Nhóm API endpoints chính
+
+| Nhóm | Router | Ví dụ endpoint |
+|---|---|---|
+| Auth | `/auth/*` | `POST /auth/login`, `POST /auth/register` |
+| MFA | `/auth/mfa/*` | `POST /auth/mfa/setup`, `POST /auth/mfa/verify` |
+| Sản phẩm | `/products/*` | `GET /products`, `GET /products/{id}` |
+| Danh mục | `/categories/*` | `GET /categories` |
+| Giỏ hàng | `/cart/*` | `GET /cart`, `POST /cart/add` |
+| Đơn hàng | `/orders/*` | `POST /orders`, `GET /orders/{id}/tracking` |
+| Thanh toán | `/payment/*` | `POST /payment/momo/create`, `POST /payment/momo/ipn` |
+| Wishlist | `/wishlist/*` | `GET /wishlist`, `POST /wishlist/add` |
+| Admin | `/admin/*` | `GET /admin/stats`, `GET /admin/orders` |
+| Chatbot | `/api/chat` | `POST /api/chat` |
+| Recommendations | `/recommendations/*` | `GET /recommendations/personalized` |
+| Users | `/users/*` | `PUT /users/me` |
+| Addresses | `/addresses/*` | `GET /addresses`, `POST /addresses` |
+| Uploads | `/upload-avatar` | `POST /upload-avatar` |
+
+---
+
+## 🧪 Kiểm thử hệ thống
+
+Sau khi chạy cả backend và frontend, test nhanh các luồng chính:
+
+### 1. Health check
+
+```bash
+curl http://localhost:8000/health
+# → {"status": "ok", "message": "Server is running"}
+```
+
+### 2. Đăng nhập admin (qua Swagger)
+
+1. Mở http://localhost:8000/docs
+2. `POST /auth/login` → `{ "email": "admin@example.com", "password": "adminpass" }`
+3. Copy `access_token` → Authorize (nút bên phải) → `Bearer {token}`
+4. Gọi `GET /auth/me` → thấy thông tin admin
+
+### 3. Test chatbot
+
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Tư vấn laptop gaming dưới 20 triệu"}'
+```
+
+### 4. Test MFA flow
+
+1. Đăng nhập → vào Edit Profile
+2. Bấm "Bật xác thực hai lớp" → nhập mật khẩu
+3. Quét QR bằng Google Authenticator
+4. Nhập mã 6 số → Kích hoạt
+5. Đăng xuất → đăng nhập lại → nhập mã TOTP
+
+---
+
+## 🌐 Đa ngôn ngữ (i18n)
+
+- **Hỗ trợ:** Tiếng Việt (`vi`) và Tiếng Anh (`en`)
+- **Cơ chế:** `react-i18next` + `i18next-browser-languagedetector`
+- **Tự động:** Phát hiện ngôn ngữ trình duyệt khi lần đầu truy cập
+- **Thủ công:** Toggle qua Settings icon (⚙️) trên Navbar
+
+---
+
+## ❓ Troubleshooting
+
+| Lỗi | Nguyên nhân | Cách fix |
+|---|---|---|
+| `Can't connect to MySQL server` | MySQL chưa chạy hoặc sai credentials | Kiểm tra MySQL service, kiểm tra `DATABASE_URL` |
+| `ModuleNotFoundError` | Chưa cài dependencies | Chạy `pip install -r requirements.txt` |
+| CORS error trên browser | `ALLOWED_ORIGINS` thiếu địa chỉ frontend | Thêm URL vào `ALLOWED_ORIGINS` trong `Backend/.env` |
+| `400 MFA not set up` | Gọi `/mfa/verify` trước `/mfa/setup` | Làm đúng thứ tự: setup → verify |
+| `400 Invalid verification code` | Mã TOTP sai hoặc lệch đồng hồ | Đảm bảo đồng hồ điện thoại đúng giờ, thử lại |
+| MoMo IPN không nhận được | `MOMO_IPN_URL` trỏ localhost | Dùng ngrok: `ngrok http 8000`, copy URL vào `.env` |
+| Email không gửi được | Sai App Password hoặc chưa bật 2FA | Tạo Gmail App Password đúng (xem mục 6.3) |
+| `npm install` lỗi | Node.js version quá cũ | Cập nhật Node.js lên 18+ |
+
+---
+
+## 📝 License
+
+MIT License — xem file [LICENSE](LICENSE).

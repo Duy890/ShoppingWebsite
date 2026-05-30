@@ -139,6 +139,7 @@ const AddressSelector = ({ selectedAddressId, onAddressSelect, onAddressChange }
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-900">Delivery Address</h3>
         <button
+          type="button"
           onClick={() => {
             setEditingAddress(null);
             setModalOpen(true);
@@ -157,6 +158,7 @@ const AddressSelector = ({ selectedAddressId, onAddressSelect, onAddressChange }
           <div>
             <p className="text-sm font-medium text-red-900">{error}</p>
             <button
+              type="button"
               onClick={loadAddresses}
               className="text-xs text-red-600 hover:text-red-700 mt-2 underline"
             >
@@ -172,6 +174,7 @@ const AddressSelector = ({ selectedAddressId, onAddressSelect, onAddressChange }
           <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 font-medium mb-3">No addresses saved yet</p>
           <button
+            type="button"
             onClick={() => {
               setEditingAddress(null);
               setModalOpen(true);

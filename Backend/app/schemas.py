@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, List, Literal, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -37,9 +37,29 @@ class MFAEnableRequest(BaseModel):
 class MFAVerifyRequest(BaseModel):
     code: str
 
+    @field_validator("code")
+    @classmethod
+    def strip_and_validate_code(cls, v: str) -> str:
+        cleaned = v.strip().replace(" ", "")
+        if not cleaned.isdigit():
+            raise ValueError("Code must contain digits only")
+        if len(cleaned) != 6:
+            raise ValueError("Code must be exactly 6 digits")
+        return cleaned
+
 class MFADisableRequest(BaseModel):
     password: str
     code: str
+
+    @field_validator("code")
+    @classmethod
+    def strip_and_validate_code(cls, v: str) -> str:
+        cleaned = v.strip().replace(" ", "")
+        if not cleaned.isdigit():
+            raise ValueError("Code must contain digits only")
+        if len(cleaned) != 6:
+            raise ValueError("Code must be exactly 6 digits")
+        return cleaned
 
 class MFASetupResponse(BaseModel):
     secret: str
@@ -486,8 +506,18 @@ class OrderItemRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserBasicInfo(BaseModel):
+    id: str
+    full_name: Optional[str] = None
+    email: str
+
+    model_config = {"from_attributes": True}
+
+
 class OrderRead(BaseModel):
     id: str
+    user_id: str
+    user: Optional[UserBasicInfo] = None
     total_amount: float
     status: str
     shipping_address: Optional[str] = None

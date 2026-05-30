@@ -69,6 +69,7 @@ const AddressCard = ({
         {(onEdit || onDelete || onSetDefault) && (
           <div className="relative">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowMenu(!showMenu);
@@ -83,6 +84,7 @@ const AddressCard = ({
               <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-40">
                 {onSetDefault && !address.is_default && (
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onSetDefault?.();
@@ -95,6 +97,7 @@ const AddressCard = ({
                 )}
                 {onEdit && (
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onEdit?.();
@@ -107,6 +110,7 @@ const AddressCard = ({
                 )}
                 {onDelete && (
                   <button
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       onDelete?.();

@@ -180,6 +180,7 @@ const EditProfile = () => {
       const { secret, qr_code_url } = await authService.setupMFA(mfaSetupPassword);
       setMfaSecret(secret);
       setMfaQrUrl(qr_code_url);
+      setMfaConfirmCode('');
       setMfaSetupPassword('');
       setMfaSetupState('show_qr');
     } catch (err) {
@@ -190,11 +191,15 @@ const EditProfile = () => {
   };
 
   const handleActivateMFA = async () => {
-    if (mfaConfirmCode.length !== 6) return;
+    const cleanCode = mfaConfirmCode.trim().replace(/\D/g, '');
+    if (cleanCode.length !== 6) {
+      setMfaError('Vui lòng nhập đủ 6 chữ số.');
+      return;
+    }
     setMfaLoading(true);
     setMfaError('');
     try {
-      await authService.verifyMFA(mfaConfirmCode);
+      await authService.verifyMFA(cleanCode);
       setMfaEnabled(true);
       setMfaSetupState('idle');
       setMfaSecret('');

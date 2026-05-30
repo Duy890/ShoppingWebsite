@@ -203,8 +203,9 @@ def verify_mfa_challenge_and_login(
     if not user or not user.mfa_secret:
         raise ValueError("MFA not configured for this account")
 
+    clean_code = totp_code.strip().replace(" ", "")
     totp = pyotp.TOTP(user.mfa_secret)
-    if not totp.verify(totp_code):
+    if not totp.verify(clean_code, valid_window=1):
         raise ValueError("Invalid MFA code")
 
     repositories.mark_mfa_challenge_used(db, jti)
