@@ -56,7 +56,7 @@ const Wishlist = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -70,7 +70,7 @@ const Wishlist = () => {
         <div className="mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-blue-600 mb-4 hover:text-blue-700"
+            className="inline-flex items-center text-primary hover:text-orange-600 mb-4 transition-colors"
           >
             <ChevronLeft className="w-5 h-5" />
             {t('edit_profile.back')}
@@ -90,7 +90,7 @@ const Wishlist = () => {
             <p className="text-gray-600">{t('wishlist.empty_desc')}</p>
             <button
               onClick={() => navigate('/products')}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 inline-block mt-4"
+              className="bg-primary text-white px-8 py-3 rounded-full font-semibold hover:bg-orange-600 transition-colors inline-block mt-4 shadow-md"
             >
               {t('wishlist.browse_products')}
             </button>
@@ -98,7 +98,7 @@ const Wishlist = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {items.map((item) => (
-              <div key={item.product.id} className="bg-white rounded-lg overflow-hidden shadow hover:shadow-lg transition">
+              <div key={item.product.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                 <div className="relative bg-gray-100 aspect-square overflow-hidden">
                   {item.product.image_url ? (
                     <img
@@ -123,7 +123,7 @@ const Wishlist = () => {
                   <h3 className="font-semibold text-gray-900 line-clamp-2">{item.product.name}</h3>
 
                   <div className="space-y-1">
-                    <p className="text-blue-600 font-bold text-lg">{formatPrice(item.product.price)}</p>
+                    <p className="text-primary font-bold text-lg">{formatPrice(item.product.price)}</p>
                     <StarRating rating={item.product.rating} size={3} />
                   </div>
 
@@ -134,13 +134,13 @@ const Wishlist = () => {
                   <div className="space-y-2 pt-3 border-t border-gray-100">
                     <button
                       onClick={() => navigate(`/product/${item.product.id}`)}
-                      className="w-full bg-gray-100 text-gray-900 py-2 rounded-lg font-semibold hover:bg-gray-200 transition"
+                      className="w-full bg-gray-100 text-gray-700 py-2.5 rounded-full font-semibold hover:bg-gray-200 transition-colors"
                     >
                       {t('product_detail.back_to_products')}
                     </button>
                     <button
                       onClick={() => handleAddToCart(item.product)}
-                      className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2"
+                      className="w-full bg-primary text-white py-2.5 rounded-full font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 shadow-sm"
                     >
                       <ShoppingCart className="w-4 h-4" />
                       {t('wishlist.add_to_cart')}
