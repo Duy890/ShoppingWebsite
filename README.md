@@ -204,10 +204,8 @@ SITE_URL=http://localhost:5173
 
 ```env
 VITE_API_BASE_URL=http://localhost:8000
-VITE_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
 ```
 
-> `VITE_GOOGLE_MAPS_API_KEY` chỉ cần nếu dùng tính năng nhập địa chỉ qua Google Maps. Có thể để trống, tính năng nhập tay vẫn hoạt động.
 
 ### 6.3 Hướng dẫn lấy Gmail App Password (cho SMTP)
 
